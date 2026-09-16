@@ -1,0 +1,968 @@
+import { useState } from 'react'
+import { BrowserRouter, NavLink, Navigate, Route, Routes } from 'react-router-dom'
+
+const roleOptions = ['Patient', 'Caregiver', 'Therapist', 'Supervisor', 'Admin']
+
+const roleNavItems = {
+  Patient: [
+    { to: '/dashboard', label: 'Dashboard', icon: '??' },
+    { to: '/assistant', label: 'Assistant', icon: '?' },
+    { to: '/goals', label: 'Goals', icon: '??' },
+    { to: '/updates', label: 'Updates', icon: '??' },
+    { to: '/appointments', label: 'Appointments', icon: '??' },
+    { to: '/therapy', label: 'Therapy', icon: '??' },
+    { to: '/games', label: 'Games', icon: '??' },
+    { to: '/community', label: 'Community', icon: '??' },
+    { to: '/profile', label: 'Profile', icon: '??' },
+    { to: '/accessibility', label: 'Accessibility', icon: '?' },
+  ],
+  Caregiver: [
+    { to: '/dashboard', label: 'Dashboard', icon: '??' },
+    { to: '/goals', label: 'Goals', icon: '??' },
+    { to: '/updates', label: 'Updates', icon: '??' },
+    { to: '/appointments', label: 'Appointments', icon: '??' },
+    { to: '/community', label: 'Community', icon: '??' },
+    { to: '/analytics', label: 'Analytics', icon: '??' },
+    { to: '/profile', label: 'Profile', icon: '??' },
+  ],
+  Therapist: [
+    { to: '/dashboard', label: 'Dashboard', icon: '??' },
+    { to: '/assistant', label: 'Assistant', icon: '?' },
+    { to: '/appointments', label: 'Appointments', icon: '??' },
+    { to: '/therapy', label: 'Therapy', icon: '??' },
+    { to: '/analytics', label: 'Analytics', icon: '??' },
+    { to: '/profile', label: 'Profile', icon: '??' },
+  ],
+  Supervisor: [
+    { to: '/dashboard', label: 'Dashboard', icon: '??' },
+    { to: '/analytics', label: 'Analytics', icon: '??' },
+    { to: '/goals', label: 'Goals', icon: '??' },
+    { to: '/updates', label: 'Updates', icon: '??' },
+    { to: '/community', label: 'Community', icon: '??' },
+    { to: '/profile', label: 'Profile', icon: '??' },
+  ],
+  Admin: [
+    { to: '/dashboard', label: 'Dashboard', icon: '??' },
+    { to: '/analytics', label: 'Analytics', icon: '??' },
+    { to: '/appointments', label: 'Appointments', icon: '??' },
+    { to: '/community', label: 'Community', icon: '??' },
+    { to: '/accessibility', label: 'Accessibility', icon: '?' },
+    { to: '/profile', label: 'Profile', icon: '??' },
+  ],
+}
+
+const dashboardContentByRole = {
+  Patient: {
+    kicker: 'VOXTECH Overview',
+    title: 'Personalized care at every step.',
+    description: 'Track goals, monitor updates, and support recovery with a unified therapy dashboard.',
+    badgeOne: 'Care plan on track',
+    badgeTwo: '+12% session engagement',
+  },
+  Caregiver: {
+    kicker: 'Care Team Overview',
+    title: 'Every care touchpoint in one place.',
+    description: 'Monitor patient milestones, coordinate check-ins, and keep support plans aligned.',
+    badgeOne: 'Family updates synced',
+    badgeTwo: '+9% care completion',
+  },
+  Therapist: {
+    kicker: 'Clinical Overview',
+    title: 'Progress visible, decisions faster.',
+    description: 'Review patient outcomes, plan next sessions, and track therapy momentum from one view.',
+    badgeOne: 'Session plan active',
+    badgeTwo: '+14% treatment adherence',
+  },
+  Supervisor: {
+    kicker: 'Operational Overview',
+    title: 'Team performance and patient outcomes, together.',
+    description: 'Keep service quality strong with real-time progress and support trends.',
+    badgeOne: 'Quality review ready',
+    badgeTwo: '+11% team efficiency',
+  },
+  Admin: {
+    kicker: 'System Overview',
+    title: 'Platform performance and care operations align.',
+    description: 'Monitor usage, service health, and delivery quality across the care network.',
+    badgeOne: 'Systems healthy',
+    badgeTwo: '+18% user engagement',
+  },
+}
+
+const statsByRole = {
+  Patient: [
+    { label: 'Weekly goal', value: '78%', change: '+8% this week', icon: '??', tone: 'bg-sky-100 text-sky-700' },
+    { label: 'Completed', value: '24', change: '12 today', icon: '?', tone: 'bg-emerald-100 text-emerald-700' },
+    { label: 'Therapy score', value: '91', change: 'Strong progress', icon: '??', tone: 'bg-violet-100 text-violet-700' },
+    { label: 'Upcoming', value: '3', change: 'Next session Thu', icon: '??', tone: 'bg-amber-100 text-amber-700' },
+  ],
+  Caregiver: [
+    { label: 'Care coverage', value: '94%', change: '+6% this week', icon: '??', tone: 'bg-sky-100 text-sky-700' },
+    { label: 'Active members', value: '18', change: '3 new cases', icon: '?', tone: 'bg-emerald-100 text-emerald-700' },
+    { label: 'Plan health', value: '89', change: 'Strong follow-up', icon: '??', tone: 'bg-violet-100 text-violet-700' },
+    { label: 'Check-ins', value: '5', change: 'Tomorrow', icon: '??', tone: 'bg-amber-100 text-amber-700' },
+  ],
+  Therapist: [
+    { label: 'Session load', value: '12', change: '+2 this week', icon: '??', tone: 'bg-sky-100 text-sky-700' },
+    { label: 'Resolved', value: '31', change: '8 today', icon: '?', tone: 'bg-emerald-100 text-emerald-700' },
+    { label: 'Recovery score', value: '92', change: 'Excellent trend', icon: '??', tone: 'bg-violet-100 text-violet-700' },
+    { label: 'Follow-ups', value: '4', change: 'Next 48 hrs', icon: '??', tone: 'bg-amber-100 text-amber-700' },
+  ],
+  Supervisor: [
+    { label: 'Team health', value: '87%', change: '+9% this month', icon: '??', tone: 'bg-sky-100 text-sky-700' },
+    { label: 'Ongoing cases', value: '42', change: '5 escalated', icon: '?', tone: 'bg-emerald-100 text-emerald-700' },
+    { label: 'Retention', value: '91', change: 'Strong compliance', icon: '??', tone: 'bg-violet-100 text-violet-700' },
+    { label: 'Reviews', value: '7', change: 'Due this week', icon: '??', tone: 'bg-amber-100 text-amber-700' },
+  ],
+  Admin: [
+    { label: 'System uptime', value: '99.9%', change: 'Stable', icon: '???', tone: 'bg-sky-100 text-sky-700' },
+    { label: 'Active users', value: '245', change: '+18 today', icon: '??', tone: 'bg-emerald-100 text-emerald-700' },
+    { label: 'Operations rate', value: '96', change: 'Strong workflow', icon: '??', tone: 'bg-violet-100 text-violet-700' },
+    { label: 'Alerts', value: '2', change: 'Needs review', icon: '??', tone: 'bg-amber-100 text-amber-700' },
+  ],
+}
+
+const appointmentTemplates = {
+  Patient: [
+    { doctor: 'Dr. Priya Sharma', time: 'Thu, 4:30 PM', note: 'Speech therapy follow-up' },
+    { doctor: 'Nurse check-in', time: 'Fri, 10:00 AM', note: 'Mobility support plan' },
+  ],
+  Caregiver: [
+    { doctor: 'Family check-in', time: 'Thu, 1:30 PM', note: 'Care update review' },
+    { doctor: 'Home visit plan', time: 'Fri, 9:00 AM', note: 'Medication follow-up' },
+  ],
+  Therapist: [
+    { doctor: 'Patient review', time: 'Thu, 5:00 PM', note: 'Therapy progress meeting' },
+    { doctor: 'Remote consult', time: 'Fri, 11:30 AM', note: 'Outcome check-in' },
+  ],
+  Supervisor: [
+    { doctor: 'Team huddle', time: 'Thu, 3:00 PM', note: 'Coverage and support planning' },
+    { doctor: 'QA review', time: 'Fri, 2:00 PM', note: 'Quality metrics audit' },
+  ],
+  Admin: [
+    { doctor: 'Ops review', time: 'Thu, 2:00 PM', note: 'System performance check' },
+    { doctor: 'Platform maintenance', time: 'Fri, 8:00 AM', note: 'Scheduled update window' },
+  ],
+}
+
+const updatesByRole = {
+  Patient: [
+    { title: 'Care plan refreshed', detail: 'New exercises assigned post session', time: '3h ago' },
+    { title: 'Recovery milestones', detail: 'Progress improved by 12% this week', time: '1d ago' },
+    { title: 'Doctor note shared', detail: 'Recommendations uploaded to patient portal', time: '2d ago' },
+  ],
+  Caregiver: [
+    { title: 'Daily care summary', detail: 'Medication and hydration tracking refreshed', time: '2h ago' },
+    { title: 'Family support update', detail: 'Short-term recovery milestones shared', time: '7h ago' },
+    { title: 'Check-in completed', detail: 'Home support plan reviewed with family', time: '1d ago' },
+  ],
+  Therapist: [
+    { title: 'Session notes released', detail: 'Updated treatment objectives sent to team', time: '1h ago' },
+    { title: 'Target milestone hit', detail: 'Therapy completion rate improved this week', time: '6h ago' },
+    { title: 'Follow-up scheduled', detail: 'Next patient review reviewed with clinical team', time: '1d ago' },
+  ],
+  Supervisor: [
+    { title: 'Operations review', detail: 'Team responsiveness above target threshold', time: '2h ago' },
+    { title: 'Quality report', detail: 'Patient satisfaction trend remains strong', time: '9h ago' },
+    { title: 'Coverage snapshot', detail: 'Support coverage and staffing balanced', time: '1d ago' },
+  ],
+  Admin: [
+    { title: 'Platform health check', detail: 'All critical services remain stable', time: '30m ago' },
+    { title: 'Usage insights', detail: 'User activity increased across care teams', time: '5h ago' },
+    { title: 'Deployment notice', detail: 'Scheduled maintenance completed without issue', time: '1d ago' },
+  ],
+}
+
+const communityItemsByRole = {
+  Patient: [
+    { title: 'Support circle', detail: '12 caregivers active today', badge: 'Live' },
+    { title: 'Peer insights', detail: 'Share coping strategies', badge: 'New' },
+  ],
+  Caregiver: [
+    { title: 'Care partners', detail: '8 caregivers linked to patient plans', badge: 'Live' },
+    { title: 'Resource room', detail: 'New recovery guides shared this week', badge: 'New' },
+  ],
+  Therapist: [
+    { title: 'Clinical exchange', detail: 'Therapists discussing care patterns', badge: 'Live' },
+    { title: 'Treatment library', detail: 'New session frameworks available', badge: 'Updated' },
+  ],
+  Supervisor: [
+    { title: 'Leadership board', detail: 'Support metrics reviewed across teams', badge: 'Live' },
+    { title: 'Quality forum', detail: 'Case studies shared with supervisors', badge: 'New' },
+  ],
+  Admin: [
+    { title: 'Operations group', detail: 'Platform and support teams aligned', badge: 'Live' },
+    { title: 'Release notes', detail: 'Recent configuration changes shared', badge: 'New' },
+  ],
+}
+
+const therapyPlans = [
+  { title: 'Speech fluency', duration: '20 mins', level: 'Strong' },
+  { title: 'Breathing drill', duration: '12 mins', level: 'Moderate' },
+  { title: 'Memory recall', duration: '15 mins', level: 'Improving' },
+]
+
+const gameCards = [
+  { name: 'Word Match', type: 'Cognitive', rating: '4.9' },
+  { name: 'Memory Sprint', type: 'Focus', rating: '4.8' },
+  { name: 'Calm Rhythm', type: 'Breathing', rating: '5.0' },
+]
+
+const routeCards = {
+  assistant: {
+    Patient: {
+      title: 'Assistant',
+      description: 'AI support for care planning, reminders, and daily therapy guidance.',
+      cards: [{ title: 'Daily briefing', detail: 'Your care plan summary is ready.', icon: '??' }, { title: 'Quick answer', detail: 'Ask for speech tips or scheduling help.', icon: '??' }, { title: 'Care tips', detail: 'Suggested exercises for the next session.', icon: '?' }],
+    },
+    Caregiver: {
+      title: 'Assistant',
+      description: 'Support coordination, family briefings, and care reminders.',
+      cards: [{ title: 'Daily briefing', detail: 'Care updates are ready for today.', icon: '??' }, { title: 'Checklist sync', detail: 'Review medication, visits, and notes.', icon: '?' }, { title: 'Family guidance', detail: 'Share helpful reminders and recovery suggestions.', icon: '??' }],
+    },
+    Therapist: {
+      title: 'Assistant',
+      description: 'Clinical prep, patient recall, and therapy planning support.',
+      cards: [{ title: 'Session summary', detail: 'Patient progress notes are ready to review.', icon: '??' }, { title: 'Plan prompts', detail: 'Suggested next exercises for the clinical plan.', icon: '?' }, { title: 'Patient support', detail: 'Quick summaries for follow-up conversations.', icon: '??' }],
+    },
+    Supervisor: {
+      title: 'Assistant',
+      description: 'Operational guidance and quality monitoring support.',
+      cards: [{ title: 'Team briefing', detail: 'Coverage and quality notes are compiled.', icon: '??' }, { title: 'Escalation support', detail: 'Identify risks and next steps efficiently.', icon: '??' }, { title: 'Coach prompts', detail: 'Suggested actions for service improvement.', icon: '??' }],
+    },
+    Admin: {
+      title: 'Assistant',
+      description: 'Operations insight, alerts, and platform guidance.',
+      cards: [{ title: 'System briefing', detail: 'Performance and alert status are ready.', icon: '???' }, { title: 'Operations note', detail: 'Review active issues and support actions.', icon: '??' }, { title: 'Release support', detail: 'Check the latest service or config updates.', icon: '??' }],
+    },
+  },
+  goals: {
+    Patient: { title: 'Goals', description: 'Track your therapy milestones and recovery objectives.', cards: [{ title: 'Breathing goal', detail: 'Complete 3 sessions this week.', icon: '??', badge: 'On track' }, { title: 'Mobility goal', detail: 'Improve range and balance with guided practice.', icon: '??', badge: 'Active' }, { title: 'Speech goal', detail: 'Increase fluency in daily conversations.', icon: '???', badge: 'New' }] },
+    Caregiver: { title: 'Goals', description: 'Track patient milestones and care objectives together.', cards: [{ title: 'Recovery target', detail: 'Keep medication adherence above 90%.', icon: '??', badge: 'On track' }, { title: 'Care routines', detail: 'Review family habit support three times weekly.', icon: '??', badge: 'Active' }, { title: 'Support plan', detail: 'Update goals for each patient after check-ins.', icon: '??', badge: 'New' }] },
+    Therapist: { title: 'Goals', description: 'Review treatment progress and plan next clinical steps.', cards: [{ title: 'Therapy target', detail: 'Hit 80% observed progress across weekly tasks.', icon: '??', badge: 'On track' }, { title: 'Focus plan', detail: 'Reinforce movement and speech repetitions.', icon: '??', badge: 'Active' }, { title: 'Follow-up goal', detail: 'Align next session outcomes to patient readiness.', icon: '?', badge: 'New' }] },
+    Supervisor: { title: 'Goals', description: 'Coordinate service quality goals across the support team.', cards: [{ title: 'Care quality', detail: 'Improve follow-up consistency across teams.', icon: '??', badge: 'On track' }, { title: 'Team readiness', detail: 'Support staffing and plan coverage balance.', icon: '??', badge: 'Active' }, { title: 'Review cycle', detail: 'Audit patient satisfaction goals by region.', icon: '??', badge: 'New' }] },
+    Admin: { title: 'Goals', description: 'Drive platform and service goals across the care network.', cards: [{ title: 'Platform uptime', detail: 'Maintain service reliability above 99.8%.', icon: '??', badge: 'On track' }, { title: 'User adoption', detail: 'Increase active user engagement each month.', icon: '??', badge: 'Active' }, { title: 'Support quality', detail: 'Improve issue resolution and release readiness.', icon: '???', badge: 'New' }] },
+  },
+  updates: {
+    Patient: { title: 'Updates', description: 'Recent care updates and progress notes from your support team.', cards: [{ title: 'Therapist note', detail: 'Session focused on confidence-building exercises.', icon: '??' }, { title: 'Care team update', detail: 'Medication and hydration plan refreshed.', icon: '??' }, { title: 'Milestone reached', detail: 'Goal completion rate improved by 12%.', icon: '?' }] },
+    Caregiver: { title: 'Updates', description: 'Recent caregiver progress and coordination updates.', cards: [{ title: 'Care summary', detail: 'Caregiver notes synced with patient record.', icon: '??' }, { title: 'Routine update', detail: 'Medication reminders were confirmed for this week.', icon: '??' }, { title: 'Family note', detail: 'Care milestone highlighted in daily briefing.', icon: '?' }] },
+    Therapist: { title: 'Updates', description: 'Recent clinical notes and treatment progress updates.', cards: [{ title: 'Patient note', detail: 'Therapy adjustments shared with care team.', icon: '??' }, { title: 'Clinical review', detail: 'Treatment plan promoted for continued care.', icon: '??' }, { title: 'Progress memo', detail: 'Patient engagement remains strong this cycle.', icon: '?' }] },
+    Supervisor: { title: 'Updates', description: 'Leadership updates, team trends, and support insights.', cards: [{ title: 'Team summary', detail: 'Coverage and staffing notes reviewed this morning.', icon: '??' }, { title: 'Quality note', detail: 'Service quality shows consistent improvement.', icon: '??' }, { title: 'Audit update', detail: 'Activity review remains aligned with standards.', icon: '?' }] },
+    Admin: { title: 'Updates', description: 'System and operations updates across the care platform.', cards: [{ title: 'Platform report', detail: 'Uptime and service stability remain strong.', icon: '???' }, { title: 'Release note', detail: 'Latest changes are now available to teams.', icon: '??' }, { title: 'Alert digest', detail: 'Operational issues remain under control.', icon: '?' }] },
+  },
+  appointments: {
+    Patient: { title: 'Appointments', description: 'Upcoming visits, calls, and check-ins scheduled for you.', cards: [{ title: 'Thu 4:30 PM', detail: 'Speech therapy follow-up with Dr. Priya Sharma.', icon: '??' }, { title: 'Fri 10:00 AM', detail: 'Mobility support plan review.', icon: '?' }, { title: 'Sat 2:00 PM', detail: 'Caregiver progress check-in.', icon: '????????' }] },
+    Caregiver: { title: 'Appointments', description: 'Support visits and coordination meetings for patient care.', cards: [{ title: 'Thu 1:30 PM', detail: 'Patient care review and update sign-off.', icon: '??' }, { title: 'Fri 9:00 AM', detail: 'Medication and home support plan review.', icon: '?' }, { title: 'Sat 10:30 AM', detail: 'Family progress briefing and check-in.', icon: '????????' }] },
+    Therapist: { title: 'Appointments', description: 'Clinical sessions and outcome review meetings.', cards: [{ title: 'Thu 5:00 PM', detail: 'Progress review with care team and patient.', icon: '??' }, { title: 'Fri 11:30 AM', detail: 'Remote consult and treatment follow-up.', icon: '??' }, { title: 'Mon 9:00 AM', detail: 'Targeted mobility session and notes review.', icon: '??' }] },
+    Supervisor: { title: 'Appointments', description: 'Operational huddles and performance reviews.', cards: [{ title: 'Thu 3:00 PM', detail: 'Coverage and quality planning reunion.', icon: '??' }, { title: 'Fri 2:00 PM', detail: 'Clinical team review and escalation check.', icon: '??' }, { title: 'Mon 10:30 AM', detail: 'Monthly support quality review meeting.', icon: '??' }] },
+    Admin: { title: 'Appointments', description: 'Platform and operations scheduling overview.', cards: [{ title: 'Thu 2:00 PM', detail: 'System performance and incident review.', icon: '??' }, { title: 'Fri 8:00 AM', detail: 'Scheduled maintenance and deployment window.', icon: '??' }, { title: 'Mon 1:00 PM', detail: 'Ops planning and resource allocation review.', icon: '??' }] },
+  },
+  analytics: {
+    Patient: { title: 'Analytics', description: 'Progress trends, success rates, and recovery metrics.', cards: [{ title: 'Session trend', detail: 'Successful completion rate reaches 89%.', icon: '??', badge: 'Up 12%' }, { title: 'Engagement', detail: 'Average activity time improved by 18 minutes.', icon: '??' }, { title: 'Retention', detail: 'Adherence remains strong across the week.', icon: '??', badge: 'Stable' }] },
+    Caregiver: { title: 'Analytics', description: 'Coverage, completion, and support measures.', cards: [{ title: 'Care coverage', detail: 'Checks are being completed on schedule.', icon: '??', badge: 'Up 9%' }, { title: 'Response time', detail: 'Follow-ups remain within the target window.', icon: '??' }, { title: 'Care completion', detail: 'Support plan completion remains stable.', icon: '??', badge: 'Healthy' }] },
+    Therapist: { title: 'Analytics', description: 'Session quality, treatment outcomes, and adherence trends.', cards: [{ title: 'Therapy trend', detail: 'Clinical outcomes continue improving this week.', icon: '??', badge: 'Up 11%' }, { title: 'Patient response', detail: 'Average engagement remains strong across plans.', icon: '??' }, { title: 'Recovery score', detail: 'Outcome score is trending above target range.', icon: '??', badge: 'Strong' }] },
+    Supervisor: { title: 'Analytics', description: 'Operational metrics, quality signals, and team trends.', cards: [{ title: 'Team average', detail: 'Service quality exceeds the planned benchmark.', icon: '??', badge: 'Up 8%' }, { title: 'Escalations', detail: 'Escalated care needs are reducing week over week.', icon: '??' }, { title: 'Review score', detail: 'Support consistency remains at a high level.', icon: '??', badge: 'Strong' }] },
+    Admin: { title: 'Analytics', description: 'Platform health, engagement, and operational performance.', cards: [{ title: 'System health', detail: 'Platform stability remains excellent.', icon: '??', badge: '99.9%' }, { title: 'User engagement', detail: 'Active usage trends continue to climb.', icon: '??' }, { title: 'Operational status', detail: 'Issue load remains low and controlled.', icon: '??', badge: 'Stable' }] },
+  },
+  profile: {
+    Patient: { title: 'Profile', description: 'Personal care details, preferences, and background.', cards: [{ title: 'Recovery score', detail: '92%', icon: '??' }, { title: 'Streak', detail: '18 days', icon: '??' }, { title: 'Care plan', detail: 'Active', icon: '??' }] },
+    Caregiver: { title: 'Profile', description: 'Team member details, care coverage, and role permissions.', cards: [{ title: 'Care coverage', detail: '94%', icon: '??' }, { title: 'Assigned cases', detail: '12', icon: '??' }, { title: 'Availability', detail: 'On duty', icon: '??' }] },
+    Therapist: { title: 'Profile', description: 'Clinical profile, treatment focus, and availability.', cards: [{ title: 'Patient load', detail: '26', icon: '??' }, { title: 'Focus area', detail: 'Speech & motion', icon: '??' }, { title: 'Schedule', detail: 'Available this week', icon: '??' }] },
+    Supervisor: { title: 'Profile', description: 'Leadership role, team oversight, and review access.', cards: [{ title: 'Team coverage', detail: '91%', icon: '??' }, { title: 'Leadership role', detail: 'Supervisor', icon: '??' }, { title: 'Review queue', detail: 'Current', icon: '??' }] },
+    Admin: { title: 'Profile', description: 'Administration profile, operations rights, and access management.', cards: [{ title: 'System health', detail: '99.9%', icon: '??' }, { title: 'Access level', detail: 'Administrator', icon: '??' }, { title: 'Mode', detail: 'Full access', icon: '??' }] },
+  },
+  accessibility: {
+    Patient: { title: 'Accessibility', description: 'Adaptive tools and preferences for a comfortable experience.', cards: [{ title: 'Larger text size', detail: 'Preference 1 is enabled for your account.', icon: '?' }, { title: 'High contrast theme', detail: 'Preference 2 is enabled for your account.', icon: '??' }, { title: 'Voice guidance', detail: 'Preference 3 is enabled for your account.', icon: '??' }] },
+    Caregiver: { title: 'Accessibility', description: 'Accessible care coordination options for daily workflows.', cards: [{ title: 'Larger text size', detail: 'Preference 1 is enabled for your account.', icon: '?' }, { title: 'Audio reminders', detail: 'Preference 2 is enabled for your account.', icon: '??' }, { title: 'Focus mode', detail: 'Preference 3 is enabled for your account.', icon: '?' }] },
+    Therapist: { title: 'Accessibility', description: 'Clinical interface preferences and focus-friendly tools.', cards: [{ title: 'High contrast theme', detail: 'Preference 1 is enabled for your account.', icon: '?' }, { title: 'Reduced motion', detail: 'Preference 2 is enabled for your account.', icon: '??' }, { title: 'Voice guidance', detail: 'Preference 3 is enabled for your account.', icon: '??' }] },
+    Supervisor: { title: 'Accessibility', description: 'Operational dashboard support and team comfort tools.', cards: [{ title: 'Large data labels', detail: 'Preference 1 is enabled for your account.', icon: '?' }, { title: 'Tone highlights', detail: 'Preference 2 is enabled for your account.', icon: '??' }, { title: 'Read-aloud summaries', detail: 'Preference 3 is enabled for your account.', icon: '??' }] },
+    Admin: { title: 'Accessibility', description: 'System administration settings for efficient operations.', cards: [{ title: 'Keyboard access', detail: 'Preference 1 is enabled for your account.', icon: '??' }, { title: 'High contrast theme', detail: 'Preference 2 is enabled for your account.', icon: '??' }, { title: 'Reduced motion', detail: 'Preference 3 is enabled for your account.', icon: '??' }] },
+  },
+}
+
+function ImprovementChart() {
+  const values = [20, 28, 36, 44, 62, 78, 89]
+  const width = 420
+  const height = 180
+  const max = 100
+  const min = 0
+  const coords = values.map((value, index) => {
+    const x = (index / (values.length - 1)) * width
+    const y = height - ((value - min) / (max - min)) * (height - 24) - 12
+    return { x, y }
+  })
+
+  const path = coords
+    .map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x} ${point.y}`)
+    .join(' ')
+
+  return (
+    <div className="rounded-[28px] border border-emerald-100 bg-white p-5 shadow-sm">
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <div>
+          <h3 className="text-xl font-bold text-slate-900">Patient improvement</h3>
+          <p className="text-sm text-slate-500">Speech & language progress trend</p>
+        </div>
+        <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-emerald-700">+18% this month</span>
+      </div>
+
+      <div className="rounded-[22px] bg-gradient-to-br from-emerald-50 via-white to-sky-50 p-3">
+        <svg viewBox={`0 0 ${width} ${height}`} className="h-44 w-full">
+          {[0, 25, 50, 75, 100].map((tick) => {
+            const y = height - ((tick - min) / (max - min)) * (height - 24) - 12
+            return <line key={tick} x1="0" x2={width} y1={y} y2={y} stroke="#d1fae5" strokeDasharray="4 8" />
+          })}
+          <path d={path} fill="none" stroke="#10b981" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
+          {coords.map((point, index) => (
+            <circle key={index} cx={point.x} cy={point.y} r="5" fill="#fff" stroke="#10b981" strokeWidth="3" />
+          ))}
+        </svg>
+      </div>
+
+      <div className="mt-4 grid grid-cols-4 gap-2 text-center text-xs text-slate-500">
+        {['Jan', 'Feb', 'Mar', 'Apr'].map((label, index) => (
+          <div key={label} className="rounded-xl bg-slate-50 px-2 py-2">
+            {label}
+            <div className="mt-1 font-bold text-slate-700">{values[index * 2] || 89}%</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function PatientGamesPanel() {
+  const [word, setWord] = useState('')
+  const [sound, setSound] = useState('')
+  const [sentence, setSentence] = useState('')
+  const [score, setScore] = useState(0)
+
+  const letters = ['S', 'H', 'P', 'E', 'A', 'C', 'T', 'R']
+  const sounds = ['ch', 'sh', 'th', 'ph']
+  const sentenceOptions = ['I can speak clearly', 'I am learning new words', 'I feel confident today']
+
+  const completeWord = word.toUpperCase() === 'SPEECH'
+  const completeSound = sound === 'sh'
+  const completeSentence = sentence === 'I can speak clearly'
+
+  const handleLetter = (letter) => {
+    if (word.length >= 6) return
+    setWord((current) => `${current}${letter}`)
+  }
+
+  const handleCheck = () => {
+    let nextScore = 0
+    if (completeWord) nextScore += 1
+    if (completeSound) nextScore += 1
+    if (completeSentence) nextScore += 1
+    setScore(nextScore)
+  }
+
+  return (
+    <div className="rounded-[28px] border border-emerald-100 bg-white p-5 shadow-sm">
+      <div className="mb-4 flex items-center justify-between">
+        <div>
+          <h3 className="text-xl font-bold text-slate-900">Interactive therapy games</h3>
+          <p className="text-sm text-slate-500">Build confidence with playful speech drills</p>
+        </div>
+        <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-emerald-700">Score {score}/3</span>
+      </div>
+
+      <div className="space-y-4">
+        <div className="rounded-2xl border border-slate-100 bg-emerald-50 p-4">
+          <p className="mb-2 text-sm font-semibold text-slate-700">1. Word builder</p>
+          <div className="mb-3 flex min-h-10 flex-wrap gap-2 rounded-xl bg-white px-3 py-2 text-lg font-bold text-slate-700">
+            {word || 'Tap letters to build the word'}
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {letters.map((letter) => (
+              <button key={letter} type="button" onClick={() => handleLetter(letter)} className="rounded-xl bg-white px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:-translate-y-0.5">
+                {letter}
+              </button>
+            ))}
+          </div>
+          {completeWord && <p className="mt-2 text-xs font-semibold text-emerald-700">Great job! You built the correct word.</p>}
+        </div>
+
+        <div className="rounded-2xl border border-slate-100 bg-sky-50 p-4">
+          <p className="mb-2 text-sm font-semibold text-slate-700">2. Sound match</p>
+          <div className="flex flex-wrap gap-2">
+            {sounds.map((option) => (
+              <button
+                key={option}
+                type="button"
+                onClick={() => setSound(option)}
+                className={`rounded-xl px-3 py-2 text-sm font-semibold transition ${sound === option ? 'bg-emerald-500 text-white' : 'bg-white text-slate-700 shadow-sm'}`}
+              >
+                {option}
+              </button>
+            ))}
+          </div>
+          {completeSound && <p className="mt-2 text-xs font-semibold text-emerald-700">Perfect! That is the correct sound.</p>}
+        </div>
+
+        <div className="rounded-2xl border border-slate-100 bg-violet-50 p-4">
+          <p className="mb-2 text-sm font-semibold text-slate-700">3. Sentence builder</p>
+          <div className="flex flex-wrap gap-2">
+            {sentenceOptions.map((option) => (
+              <button
+                key={option}
+                type="button"
+                onClick={() => setSentence(option)}
+                className={`rounded-xl px-3 py-2 text-sm font-semibold transition ${sentence === option ? 'bg-emerald-500 text-white' : 'bg-white text-slate-700 shadow-sm'}`}
+              >
+                {option}
+              </button>
+            ))}
+          </div>
+          {completeSentence && <p className="mt-2 text-xs font-semibold text-emerald-700">Excellent sentence choice.</p>}
+        </div>
+
+        <button type="button" onClick={handleCheck} className="w-full rounded-xl bg-gradient-to-r from-emerald-400 to-teal-500 px-4 py-3 font-bold text-white shadow-lg shadow-emerald-500/20 transition hover:-translate-y-0.5">
+          Check my progress
+        </button>
+      </div>
+    </div>
+  )
+}
+
+function DashboardPage({ role }) {
+  const info = dashboardContentByRole[role] || dashboardContentByRole.Patient
+  const stats = statsByRole[role] || statsByRole.Patient
+  const appointments = appointmentTemplates[role] || appointmentTemplates.Patient
+  const updates = updatesByRole[role] || updatesByRole.Patient
+  const community = communityItemsByRole[role] || communityItemsByRole.Patient
+
+  return (
+    <section className="relative z-10 space-y-6">
+      <div className="grid gap-6 rounded-[30px] bg-gradient-to-r from-[#f3faf6] to-[#edf9ff] p-6 lg:grid-cols-[1.2fr_0.8fr]">
+        <div>
+          <p className="mb-2 text-xs font-semibold uppercase tracking-[0.22em] text-emerald-600">{info.kicker}</p>
+          <h2 className="max-w-md text-3xl font-bold text-slate-900">{info.title}</h2>
+          <p className="mt-3 max-w-lg text-slate-600">{info.description}</p>
+          <button type="button" className="mt-6 rounded-full bg-slate-900 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-slate-900/15 transition hover:-translate-y-0.5">
+            View care plan
+          </button>
+        </div>
+
+        <div className="relative flex items-center justify-center">
+          <div className="flex h-48 w-48 items-center justify-center rounded-full bg-gradient-to-br from-emerald-200 via-teal-100 to-cyan-100 text-7xl shadow-[0_20px_35px_rgba(16,185,129,0.18)]">
+            {role === 'Admin' ? '???' : role === 'Therapist' ? '??' : role === 'Supervisor' ? '??' : role === 'Caregiver' ? '??' : '?????'}
+          </div>
+          <div className="absolute left-4 top-4 rounded-full bg-white px-3 py-1 text-xs font-semibold text-emerald-700 shadow-md">{info.badgeOne}</div>
+          <div className="absolute bottom-4 right-4 rounded-full bg-white px-3 py-1 text-xs font-semibold text-violet-700 shadow-md">{info.badgeTwo}</div>
+        </div>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        {stats.map((stat) => (
+          <div key={stat.label} className="rounded-[24px] border border-slate-100 bg-white p-4 shadow-sm shadow-slate-200/50">
+            <div className="mb-3 flex items-center justify-between">
+              <span className={`flex h-11 w-11 items-center justify-center rounded-2xl ${stat.tone}`}>{stat.icon}</span>
+            </div>
+            <p className="text-sm text-slate-500">{stat.label}</p>
+            <p className="mt-2 text-3xl font-bold text-slate-900">{stat.value}</p>
+            <p className="mt-1 text-xs text-slate-500">{stat.change}</p>
+          </div>
+        ))}
+      </div>
+
+      {role === 'Patient' && (
+        <div className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
+          <ImprovementChart />
+          <PatientGamesPanel />
+        </div>
+      )}
+
+      <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
+        <div className="rounded-[28px] border border-slate-100 bg-white p-5 shadow-sm">
+          <div className="mb-4">
+            <h3 className="text-xl font-bold text-slate-900">Priority goals</h3>
+            <p className="text-sm text-slate-500">Focus areas for today</p>
+          </div>
+
+          <div className="space-y-4">
+            {[
+              { title: 'Breathing exercise', detail: 'Morning routine', done: true, status: 'Completed' },
+              { title: 'Medication log', detail: 'Recorded at 08:30 AM', done: true, status: 'Completed' },
+              { title: 'Language practice', detail: '20-minute drill', done: false, status: 'Pending' },
+            ].map((goal) => (
+              <div key={goal.title} className="flex items-center gap-3 rounded-2xl border border-slate-100 bg-slate-50/80 p-3">
+                <div className={`flex h-8 w-8 items-center justify-center rounded-full ${goal.done ? 'bg-emerald-500 text-white' : 'bg-slate-200 text-slate-500'}`}>
+                  {goal.done ? '?' : ''}
+                </div>
+                <div className="flex-1">
+                  <p className="font-semibold text-slate-800">{goal.title}</p>
+                  <p className="text-xs text-slate-500">{goal.detail}</p>
+                </div>
+                <span className={`rounded-full px-2.5 py-1 text-[10px] font-bold ${goal.done ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
+                  {goal.status}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="rounded-[28px] border border-slate-100 bg-white p-5 shadow-sm">
+          <div className="mb-4">
+            <h3 className="text-xl font-bold text-slate-900">Next appointment</h3>
+            <p className="text-sm text-slate-500">Session details</p>
+          </div>
+
+          <div className="space-y-4">
+            {appointments.map((item) => (
+              <div key={item.doctor} className="flex gap-3 rounded-2xl bg-slate-50 p-3">
+                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-violet-200 to-emerald-200 text-2xl">?????</div>
+                <div>
+                  <p className="font-semibold text-slate-800">{item.doctor}</p>
+                  <p className="text-sm text-slate-500">{item.time}</p>
+                  <p className="text-xs text-emerald-600">{item.note}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
+        <div className="rounded-[28px] border border-slate-100 bg-white p-5 shadow-sm">
+          <div className="mb-4 flex items-center justify-between">
+            <div>
+              <h3 className="text-xl font-bold text-slate-900">Therapy updates</h3>
+              <p className="text-sm text-slate-500">Recent progress</p>
+            </div>
+            <button type="button" className="text-sm font-semibold text-emerald-700">View all</button>
+          </div>
+
+          <div className="space-y-4">
+            {updates.map((item) => (
+              <div key={item.title} className="rounded-2xl border border-slate-100 bg-slate-50 p-3">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="font-semibold text-slate-800">{item.title}</p>
+                  <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">{item.time}</span>
+                </div>
+                <p className="mt-1 text-sm text-slate-600">{item.detail}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="rounded-[28px] border border-slate-100 bg-white p-5 shadow-sm">
+          <div className="mb-4">
+            <h3 className="text-xl font-bold text-slate-900">Community</h3>
+            <p className="text-sm text-slate-500">Care circles</p>
+          </div>
+
+          <div className="space-y-4">
+            {community.map((item) => (
+              <div key={item.title} className="flex items-center justify-between rounded-2xl border border-slate-100 bg-slate-50 p-3">
+                <div>
+                  <p className="font-semibold text-slate-800">{item.title}</p>
+                  <p className="text-sm text-slate-500">{item.detail}</p>
+                </div>
+                <span className="rounded-full bg-emerald-100 px-2 py-1 text-[10px] font-bold uppercase text-emerald-700">{item.badge}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </section>
+  )
+}
+
+function GenericPage({ title, description, cards }) {
+  return (
+    <section className="relative z-10 space-y-6">
+      <div className="rounded-[28px] border border-slate-100 bg-white p-6 shadow-sm">
+        <p className="text-xs font-semibold uppercase tracking-[0.22em] text-emerald-600">VOXTECH</p>
+        <h2 className="mt-2 text-3xl font-bold text-slate-900">{title}</h2>
+        <p className="mt-2 text-slate-600">{description}</p>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        {cards.map((card) => (
+          <div key={card.title} className="rounded-[24px] border border-slate-100 bg-white p-5 shadow-sm">
+            <div className="mb-3 flex items-center justify-between">
+              <span className="text-2xl">{card.icon}</span>
+              {card.badge ? <span className="rounded-full bg-emerald-100 px-2 py-1 text-[10px] font-bold uppercase text-emerald-700">{card.badge}</span> : null}
+            </div>
+            <h3 className="text-lg font-bold text-slate-900">{card.title}</h3>
+            <p className="mt-2 text-sm text-slate-600">{card.detail}</p>
+          </div>
+        ))}
+      </div>
+    </section>
+  )
+}
+
+function AppShell({ darkMode, setDarkMode, role, setRole, onOpenChat }) {
+  const navItems = roleNavItems[role] || roleNavItems.Patient
+
+  return (
+    <div className="mx-auto flex min-h-screen max-w-[1600px] gap-6 p-4 lg:p-6">
+      <aside className={darkMode ? 'flex w-full max-w-[290px] flex-col rounded-[28px] border border-slate-700 bg-slate-900/80 p-5 shadow-2xl shadow-slate-950/20' : 'flex w-full max-w-[290px] flex-col rounded-[28px] border border-emerald-100 bg-white/80 p-5 shadow-[0_20px_45px_rgba(20,80,60,0.08)] backdrop-blur-xl'}>
+        <div className="mb-7 flex items-center gap-3">
+          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-300 to-emerald-500 text-xl text-slate-900 shadow-md shadow-emerald-300/25">?</div>
+          <div>
+            <h2 className={darkMode ? 'text-2xl font-bold text-white' : 'text-2xl font-bold text-slate-900'}>VOXTECH</h2>
+            <span className={darkMode ? 'text-xs text-slate-400' : 'text-xs text-slate-500'}>Clinical care platform</span>
+          </div>
+        </div>
+
+        <div className="mb-6 space-y-2">
+          <label htmlFor="role" className={darkMode ? 'text-xs font-semibold uppercase tracking-[0.18em] text-slate-400' : 'text-xs font-semibold uppercase tracking-[0.18em] text-slate-500'}>Role</label>
+          <select id="role" value={role} onChange={(event) => setRole(event.target.value)} className={darkMode ? 'w-full rounded-2xl border border-slate-700 bg-slate-800 px-3 py-3 text-sm text-slate-100 outline-none focus:border-emerald-400' : 'w-full rounded-2xl border border-emerald-100 bg-emerald-50 px-3 py-3 text-sm text-slate-700 outline-none focus:border-emerald-400'}>
+            {roleOptions.map((option) => (
+              <option key={option} value={option}>{option}</option>
+            ))}
+          </select>
+        </div>
+
+        <nav className="space-y-1.5">
+          {navItems.map((item) => (
+            <NavLink
+              key={item.to}
+              to={item.to}
+              className={({ isActive }) =>
+                isActive
+                  ? 'flex w-full items-center gap-3 rounded-2xl bg-gradient-to-r from-emerald-500 to-emerald-400 px-4 py-3 text-left text-sm font-semibold text-slate-900 shadow-lg shadow-emerald-500/20'
+                  : darkMode
+                    ? 'flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-left text-sm font-medium text-slate-300 transition hover:bg-slate-800/80'
+                    : 'flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-left text-sm font-medium text-slate-600 transition hover:bg-emerald-50'
+              }
+            >
+              <span>{item.icon}</span>
+              <span>{item.label}</span>
+            </NavLink>
+          ))}
+        </nav>
+
+        <div className="mt-auto space-y-4 pt-6">
+          <div className={darkMode ? 'flex items-center gap-2 rounded-2xl border border-emerald-500/20 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-300' : 'flex items-center gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700'}>
+            <span className="inline-block h-2.5 w-2.5 rounded-full bg-emerald-400" />
+            System online
+          </div>
+
+          <div className={darkMode ? 'flex items-center gap-3 rounded-2xl border border-slate-700 bg-slate-800 px-3 py-3' : 'flex items-center gap-3 rounded-2xl border border-emerald-100 bg-emerald-50/70 px-3 py-3'}>
+            <div className="flex h-11 w-11 items-center justify-center rounded-full bg-gradient-to-br from-slate-200 to-emerald-200 font-bold text-slate-700">
+              {role === 'Patient' ? 'PS' : role === 'Caregiver' ? 'MD' : role === 'Therapist' ? 'NR' : role === 'Supervisor' ? 'AI' : 'AM'}
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className={darkMode ? 'text-sm font-semibold text-white' : 'text-sm font-semibold text-slate-900'}>{role === 'Patient' ? 'Priya Sharma' : role === 'Caregiver' ? 'Meera Das' : role === 'Therapist' ? 'Neha Rao' : role === 'Supervisor' ? 'Arjun Iyer' : 'Asha Menon'}</p>
+              <p className={darkMode ? 'text-xs text-slate-400' : 'text-xs text-slate-500'}>{role}</p>
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      <main className="relative flex-1 overflow-hidden rounded-[30px] border border-emerald-100 bg-white/70 p-5 shadow-[0_20px_60px_rgba(22,53,45,0.08)] backdrop-blur-xl lg:p-7">
+        <div className="pointer-events-none absolute inset-0 overflow-hidden">
+          <div className="absolute -left-10 top-24 h-52 w-52 rounded-full bg-emerald-200/50 blur-3xl" />
+          <div className="absolute right-0 top-0 h-64 w-64 rounded-full bg-violet-200/40 blur-3xl" />
+        </div>
+
+        <header className="relative z-10 flex flex-col gap-4 pb-5 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-slate-900 lg:text-4xl">Good Morning ??</h1>
+            <p className="mt-1 text-slate-600">Your personalized care dashboard.</p>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <button type="button" onClick={() => setDarkMode((value) => !value)} className={darkMode ? 'rounded-full bg-slate-800 px-3 py-2 text-lg shadow-lg shadow-slate-900/25' : 'rounded-full bg-slate-100 px-3 py-2 text-lg shadow-sm'}>
+              {darkMode ? '??' : '??'}
+            </button>
+            <button type="button" className={darkMode ? 'flex items-center gap-2 rounded-full bg-slate-800 px-3 py-2 text-sm text-slate-200' : 'flex items-center gap-2 rounded-full bg-slate-100 px-3 py-2 text-sm text-slate-700'}>
+              ?? <span className="rounded-full bg-emerald-500 px-1.5 py-0.5 text-[10px] font-bold text-white">3</span>
+            </button>
+            <button type="button" onClick={onOpenChat} className={darkMode ? 'rounded-full bg-emerald-500 px-3 py-2 text-sm font-semibold text-slate-900 shadow-lg shadow-emerald-500/20' : 'rounded-full bg-emerald-100 px-3 py-2 text-sm font-semibold text-emerald-800 shadow-sm'}>
+              ?? AI Agent
+            </button>
+            <select className={darkMode ? 'rounded-full border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-slate-200 outline-none' : 'rounded-full border border-emerald-100 bg-emerald-50 px-3 py-2 text-sm text-slate-700 outline-none'}>
+              <option>English</option>
+              <option>??????</option>
+              <option>?????</option>
+            </select>
+          </div>
+        </header>
+
+        <Routes>
+          <Route path="/" element={<Navigate to="/dashboard" replace />} />
+          <Route path="/dashboard" element={<DashboardPage role={role} />} />
+          <Route path="/assistant" element={<GenericPage {...routeCards.assistant[role]} />} />
+          <Route path="/goals" element={<GenericPage {...routeCards.goals[role]} />} />
+          <Route path="/updates" element={<GenericPage {...routeCards.updates[role]} />} />
+          <Route path="/appointments" element={<GenericPage {...routeCards.appointments[role]} />} />
+          <Route path="/therapy" element={<GenericPage title="Therapy" description="Guided plans and sessions tailored to your recovery path." cards={therapyPlans.map((plan) => ({ ...plan, icon: '??', detail: `${plan.duration} • ${plan.level} progress`, badge: plan.level }))} />} />
+          <Route path="/games" element={<GenericPage title="Games" description="Light cognitive and therapeutic activities to keep progress engaging." cards={gameCards.map((game) => ({ title: game.name, detail: `${game.type} • Rated ${game.rating}`, icon: '??', badge: game.type }))} />} />
+          <Route path="/community" element={<GenericPage title="Community" description="Support circles, peer groups, and shared care experiences." cards={communityItemsByRole[role].map((item) => ({ title: item.title, detail: item.detail, icon: '??', badge: item.badge }))} />} />
+          <Route path="/analytics" element={<GenericPage {...routeCards.analytics[role]} />} />
+          <Route path="/profile" element={<GenericPage {...routeCards.profile[role]} />} />
+          <Route path="/accessibility" element={<GenericPage {...routeCards.accessibility[role]} />} />
+          <Route path="*" element={<Navigate to="/dashboard" replace />} />
+        </Routes>
+      </main>
+    </div>
+  )
+}
+
+function ChatbotPanel({ darkMode, role, isOpen, onClose }) {
+  const [messages, setMessages] = useState([
+    {
+      id: 1,
+      sender: 'bot',
+      text:
+        role === 'Patient'
+          ? 'Hi! I can help with speech drills, breathing prompts, and daily practice routines.'
+          : 'Hello! I can help with care coordination, treatment planning, and patient progress insights.',
+    },
+  ])
+  const [draft, setDraft] = useState('')
+
+  const replyFor = (message) => {
+    const lower = message.toLowerCase()
+
+    if (lower.includes('speech') || lower.includes('word') || lower.includes('sound')) {
+      return 'Try a 5-minute word game, then repeat 3 target sounds slowly. Practice with a calm voice and a short pause between words.'
+    }
+    if (lower.includes('goal') || lower.includes('progress')) {
+      return 'Keep a simple routine: 5 minutes of warm-up, 10 minutes of targeted practice, then note one improvement from today.'
+    }
+    if (lower.includes('breath') || lower.includes('relax')) {
+      return 'Take a slow inhale for 4 counts, hold for 2, and exhale for 6. Repeat 3 times before speaking tasks.'
+    }
+    if (lower.includes('appointment') || lower.includes('schedule')) {
+      return 'I recommend confirming the next session 24 hours before the visit and preparing 3 quick speech goals to review.'
+    }
+    if (role === 'Therapist') {
+      return 'For therapy planning, focus on one target sound, one sentence prompt, and one progress check after each session.'
+    }
+    if (role === 'Caregiver') {
+      return 'For family support, keep reminders short, positive, and consistent across the day to build confidence.'
+    }
+    if (role === 'Supervisor') {
+      return 'For supervision, review progress trends, staffing coverage, and weekly quality checkpoints together.'
+    }
+    if (role === 'Admin') {
+      return 'For operations, review system health, user engagement, and support queue alerts before planning changes.'
+    }
+
+    return 'Great question. Keep the practice short, consistent, and encouraging. A few focused minutes each day create measurable progress.'
+  }
+
+  const handleSend = () => {
+    if (!draft.trim()) return
+
+    const userText = draft.trim()
+    const userMessage = { id: Date.now(), sender: 'user', text: userText }
+    const botMessage = { id: Date.now() + 1, sender: 'bot', text: replyFor(userText) }
+
+    setMessages((current) => [...current, userMessage, botMessage])
+    setDraft('')
+  }
+
+  if (!isOpen) return null
+
+  return (
+    <div className="fixed bottom-6 right-6 z-50 w-[min(360px,calc(100vw-24px))] overflow-hidden rounded-[28px] border border-emerald-200 bg-white/95 shadow-[0_25px_60px_rgba(16,185,129,0.22)] backdrop-blur-xl">
+      <div className={`flex items-center justify-between border-b px-4 py-3 ${darkMode ? 'border-slate-700 bg-slate-800 text-white' : 'border-emerald-100 bg-emerald-50 text-slate-900'}`}>
+        <div className="flex items-center gap-2">
+          <span className="text-xl">??</span>
+          <div>
+            <p className="font-bold">VOXTECH AI</p>
+            <p className="text-[10px] uppercase tracking-[0.18em] text-emerald-600">Interactive assistant</p>
+          </div>
+        </div>
+        <button type="button" onClick={onClose} className="rounded-full bg-white/80 px-2 py-1 text-xs font-bold text-slate-700">?</button>
+      </div>
+
+      <div className="max-h-80 space-y-3 overflow-y-auto bg-slate-50 p-4">
+        {messages.map((message) => (
+          <div key={message.id} className={`max-w-[85%] rounded-2xl px-3 py-2 text-sm ${message.sender === 'user' ? 'ml-auto bg-emerald-500 text-white' : 'bg-white text-slate-700 shadow-sm'}`}>
+            {message.text}
+          </div>
+        ))}
+      </div>
+
+      <div className="flex gap-2 border-t border-emerald-100 bg-white p-3">
+        <input
+          type="text"
+          value={draft}
+          onChange={(event) => setDraft(event.target.value)}
+          placeholder="Ask the AI assistant..."
+          className="flex-1 rounded-xl border border-emerald-100 bg-emerald-50 px-3 py-2 text-sm text-slate-700 outline-none"
+          onKeyDown={(event) => {
+            if (event.key === 'Enter') handleSend()
+          }}
+        />
+        <button type="button" onClick={handleSend} className="rounded-xl bg-emerald-500 px-3 py-2 font-bold text-white">Send</button>
+      </div>
+    </div>
+  )
+}
+
+function getStoredAccounts() {
+  try {
+    const raw = window.localStorage.getItem('voxtechAccounts')
+    return raw ? JSON.parse(raw) : []
+  } catch {
+    return []
+  }
+}
+
+function App() {
+  const [darkMode, setDarkMode] = useState(false)
+  const [selectedRole, setSelectedRole] = useState('Patient')
+  const [loginData, setLoginData] = useState({ username: '', password: '', role: 'Patient' })
+  const [authMode, setAuthMode] = useState('login')
+  const [formMessage, setFormMessage] = useState('')
+  const [formError, setFormError] = useState('')
+  const [isAuthenticated, setIsAuthenticated] = useState(false)
+  const [isChatOpen, setIsChatOpen] = useState(false)
+
+  const handleCreateAccount = (event) => {
+    event.preventDefault()
+
+    if (!loginData.username.trim() || !loginData.password.trim()) {
+      setFormError('Please enter both username and password.')
+      setFormMessage('')
+      return
+    }
+
+    const accounts = getStoredAccounts()
+    const normalized = loginData.username.trim().toLowerCase()
+    const existing = accounts.some((account) => account.username.toLowerCase() === normalized)
+
+    if (existing) {
+      setFormError('This username already exists. Please use another one or log in.')
+      setFormMessage('')
+      return
+    }
+
+    const updated = [...accounts, { username: loginData.username.trim(), password: loginData.password, role: loginData.role }]
+    window.localStorage.setItem('voxtechAccounts', JSON.stringify(updated))
+
+    setFormError('')
+    setFormMessage('Account created successfully. Please sign in using your username and password.')
+    setAuthMode('login')
+    setLoginData((current) => ({ ...current, password: '', username: current.username.trim() }))
+  }
+
+  const handleLogin = (event) => {
+    event.preventDefault()
+
+    if (!loginData.username.trim() || !loginData.password.trim()) {
+      setFormError('Please enter both username and password.')
+      setFormMessage('')
+      return
+    }
+
+    const accounts = getStoredAccounts()
+    const matched = accounts.find(
+      (account) =>
+        account.username.toLowerCase() === loginData.username.trim().toLowerCase() &&
+        account.password === loginData.password &&
+        account.role === loginData.role,
+    )
+
+    if (!matched) {
+      setFormError('Invalid username or password for this role. Please create an account first or try a different role.')
+      setFormMessage('')
+      return
+    }
+
+    setSelectedRole(loginData.role)
+    setFormError('')
+    setFormMessage('YOU LOGGINED SUCCESSFULLY')
+
+    window.setTimeout(() => setIsAuthenticated(true), 700)
+  }
+
+  return (
+    <BrowserRouter>
+      <div className={darkMode ? 'min-h-screen bg-slate-950 text-slate-50' : 'min-h-screen bg-[#eefaf5] text-slate-900'}>
+        {!isAuthenticated ? (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/70 backdrop-blur-sm">
+            <div className="w-[min(430px,calc(100vw-32px))] rounded-[30px] border border-emerald-300/20 bg-[#061d17] p-7 shadow-[0_30px_80px_rgba(7,31,26,0.45)]">
+              <div className="mb-5 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-400/20 text-lg text-emerald-300">?</div>
+                  <div>
+                    <h2 className="text-2xl font-bold text-white">VOXTECH</h2>
+                    <span className="text-xs text-slate-300">Speech & language therapy</span>
+                  </div>
+                </div>
+
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-500/15 text-2xl shadow-inner shadow-emerald-500/20">
+                  {loginData.role === 'Patient' ? '?????' : loginData.role === 'Caregiver' ? '??' : loginData.role === 'Therapist' ? '??' : loginData.role === 'Supervisor' ? '??' : '???'}
+                </div>
+              </div>
+
+              <div className="mb-6 grid grid-cols-2 gap-2 rounded-2xl border border-slate-700 bg-slate-900/50 p-1">
+                <button type="button" onClick={() => setAuthMode('login')} className={`rounded-xl px-3 py-2 text-sm font-semibold transition ${authMode === 'login' ? 'bg-emerald-400 text-slate-900' : 'text-slate-300'}`}>
+                  Login
+                </button>
+                <button type="button" onClick={() => setAuthMode('signup')} className={`rounded-xl px-3 py-2 text-sm font-semibold transition ${authMode === 'signup' ? 'bg-emerald-400 text-slate-900' : 'text-slate-300'}`}>
+                  Create account
+                </button>
+              </div>
+
+              <p className="mb-4 text-2xl font-bold text-white">{authMode === 'login' ? 'Welcome back' : 'Create your account'}</p>
+
+              <form className="space-y-4" onSubmit={authMode === 'login' ? handleLogin : handleCreateAccount}>
+                <div className="space-y-2">
+                  <label htmlFor="username" className="text-xs font-semibold text-slate-200">Username</label>
+                  <input
+                    id="username"
+                    type="text"
+                    value={loginData.username}
+                    onChange={(event) => setLoginData((current) => ({ ...current, username: event.target.value }))}
+                    placeholder="Enter username"
+                    className="w-full rounded-xl border border-slate-500/40 bg-slate-900/60 px-3 py-3 text-sm text-white outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-500/20"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label htmlFor="password" className="text-xs font-semibold text-slate-200">Password</label>
+                  <input
+                    id="password"
+                    type="password"
+                    value={loginData.password}
+                    onChange={(event) => setLoginData((current) => ({ ...current, password: event.target.value }))}
+                    placeholder="Enter password"
+                    className="w-full rounded-xl border border-slate-500/40 bg-slate-900/60 px-3 py-3 text-sm text-white outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-500/20"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label htmlFor="loginRole" className="text-xs font-semibold text-slate-200">Role</label>
+                  <div className="flex items-center gap-2 rounded-xl border border-slate-500/40 bg-slate-900/60 px-3 py-3 text-white">
+                    <span className="text-lg">{loginData.role === 'Patient' ? '?????' : loginData.role === 'Caregiver' ? '??' : loginData.role === 'Therapist' ? '??' : loginData.role === 'Supervisor' ? '??' : '???'}</span>
+                    <select id="loginRole" value={loginData.role} onChange={(event) => setLoginData((current) => ({ ...current, role: event.target.value }))} className="w-full bg-transparent text-sm outline-none">
+                      {roleOptions.map((option) => (
+                        <option key={option} value={option} className="bg-slate-900 text-white">{option}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <button type="submit" className="w-full rounded-xl bg-gradient-to-r from-emerald-300 to-emerald-500 px-4 py-3 font-bold text-slate-900 shadow-lg shadow-emerald-500/20 transition hover:-translate-y-0.5">
+                  {authMode === 'login' ? 'Sign In' : 'Create Account'}
+                </button>
+
+                {formMessage && <p className="text-xs font-semibold uppercase tracking-[0.15em] text-emerald-300">{formMessage}</p>}
+                {formError && <p className="text-xs leading-5 text-rose-300">{formError}</p>}
+              </form>
+            </div>
+          </div>
+        ) : (
+          <>
+            <AppShell darkMode={darkMode} setDarkMode={setDarkMode} role={selectedRole} setRole={setSelectedRole} onOpenChat={() => setIsChatOpen(true)} />
+            <ChatbotPanel darkMode={darkMode} role={selectedRole} isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} />
+          </>
+        )}
+      </div>
+    </BrowserRouter>
+  )
+}
+
+export default App
