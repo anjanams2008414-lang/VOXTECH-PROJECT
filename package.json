@@ -21,6 +21,8 @@
     "cors": "^2.8.6",
     "dotenv": "^17.0.1",
     "express": "^5.2.1",
+    "express-rate-limit": "^8.7.0",
+    "helmet": "^8.3.0",
     "jsonwebtoken": "^9.0.2",
     "multer": "^2.0.0",
     "node-appwrite": "^18.0.0",

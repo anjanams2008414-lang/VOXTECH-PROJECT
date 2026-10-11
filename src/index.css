@@ -35,3 +35,23 @@ select {
   min-height: 100vh;
 }
 
+/* Accessibility Typography & Sizing */
+html.font-size-normal {
+  font-size: 16px;
+}
+
+html.font-size-large {
+  font-size: 18px;
+}
+
+html.font-size-xlarge {
+  font-size: 20px;
+}
+
+body.font-dyslexic {
+  font-family: 'OpenDyslexic', 'Comic Sans MS', -apple-system, BlinkMacSystemFont, sans-serif !important;
+  letter-spacing: 0.05em !important;
+  word-spacing: 0.12em !important;
+  line-height: 1.75 !important;
+}
+

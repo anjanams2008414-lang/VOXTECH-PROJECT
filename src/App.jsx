@@ -1,6 +1,14 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { BrowserRouter, NavLink, Navigate, Route, Routes, useNavigate } from 'react-router-dom'
 import { io } from 'socket.io-client'
+import TherapyJourneyPage from './features/therapy-journey/TherapyJourneyPage'
+import SpeechJourneyFlow from './features/speech-journey/SpeechJourneyFlow'
+import SmartAppointmentBooking from './features/appointments/SmartAppointmentBooking'
+import TherapistScheduleManager from './features/appointments/TherapistScheduleManager'
+import { useNetworkQuality } from './features/appointments/useNetworkQuality'
+import GamesHub from './features/games/GamesHub'
+import { translations } from './i18n/translations'
+import { useTranslation } from './i18n/LanguageContext'
 
 const roleOptions = ['Patient', 'Caregiver', 'Therapist', 'Supervisor', 'Admin']
 
@@ -9,6 +17,7 @@ const roleNavItems = {
     { to: '/dashboard', label: 'Dashboard', icon: '🏠' },
     { to: '/assistant', label: 'Assistant', icon: '✨' },
     { to: '/journey', label: 'Journey', icon: '🗺️' },
+    { to: '/speech-journey', label: 'Speech Flow', icon: '🎙️' },
     { to: '/goals', label: 'Goals', icon: '🎯' },
     { to: '/updates', label: 'Updates', icon: '📢' },
     { to: '/appointments', label: 'Appointments', icon: '📅' },
@@ -24,9 +33,11 @@ const roleNavItems = {
     { to: '/goals', label: 'Goals', icon: '🎯' },
     { to: '/updates', label: 'Updates', icon: '📢' },
     { to: '/appointments', label: 'Appointments', icon: '📅' },
+    { to: '/games', label: 'Games', icon: '🎮' },
     { to: '/community', label: 'Community', icon: '🤝' },
     { to: '/analytics', label: 'Analytics', icon: '📊' },
     { to: '/profile', label: 'Profile', icon: '👤' },
+    { to: '/accessibility', label: 'Accessibility', icon: '♿' },
   ],
   Therapist: [
     { to: '/dashboard', label: 'Dashboard', icon: '🏠' },
@@ -34,8 +45,10 @@ const roleNavItems = {
     { to: '/journey', label: 'Journey', icon: '🗺️' },
     { to: '/appointments', label: 'Appointments', icon: '📅' },
     { to: '/therapy', label: 'Therapy', icon: '🧠' },
+    { to: '/games', label: 'Games', icon: '🎮' },
     { to: '/analytics', label: 'Analytics', icon: '📊' },
     { to: '/profile', label: 'Profile', icon: '👤' },
+    { to: '/accessibility', label: 'Accessibility', icon: '♿' },
   ],
   Supervisor: [
     { to: '/dashboard', label: 'Dashboard', icon: '🏠' },
@@ -45,6 +58,7 @@ const roleNavItems = {
     { to: '/updates', label: 'Updates', icon: '📢' },
     { to: '/community', label: 'Community', icon: '🤝' },
     { to: '/profile', label: 'Profile', icon: '👤' },
+    { to: '/accessibility', label: 'Accessibility', icon: '♿' },
   ],
   Admin: [
     { to: '/dashboard', label: 'Dashboard', icon: '🏠' },
@@ -316,6 +330,7 @@ const routeCards = {
 }
 
 function ImprovementChart() {
+  const { lang, t } = useTranslation()
   const values = [20, 28, 36, 44, 62, 78, 89]
   const width = 420
   const height = 180
@@ -329,14 +344,16 @@ function ImprovementChart() {
 
   const path = coords.map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x} ${point.y}`).join(' ')
 
+  const monthLabels = ['Jan', 'Feb', 'Mar', 'Apr'].map((m) => t(m, m))
+
   return (
     <div className="rounded-[28px] border border-emerald-100 bg-white p-5 shadow-sm">
       <div className="mb-4 flex items-center justify-between gap-3">
         <div>
-          <h3 className="text-xl font-bold text-slate-900">Patient improvement</h3>
-          <p className="text-sm text-slate-500">Speech & language progress trend</p>
+          <h3 className="text-xl font-bold text-slate-900">{t('patientImprovement', 'Patient improvement')}</h3>
+          <p className="text-sm text-slate-500">{t('speechLanguageTrend', 'Speech & language progress trend')}</p>
         </div>
-        <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-emerald-700">+18% this month</span>
+        <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-emerald-700">{t('thisMonthImp', '+18% this month')}</span>
       </div>
 
       <div className="rounded-[22px] bg-gradient-to-br from-emerald-50 via-white to-sky-50 p-3">
@@ -353,7 +370,7 @@ function ImprovementChart() {
       </div>
 
       <div className="mt-4 grid grid-cols-4 gap-2 text-center text-xs text-slate-500">
-        {['Jan', 'Feb', 'Mar', 'Apr'].map((label, index) => (
+        {monthLabels.map((label, index) => (
           <div key={label} className="rounded-xl bg-slate-50 px-2 py-2">
             {label}
             <div className="mt-1 font-bold text-slate-700">{values[index * 2] || 89}%</div>
@@ -365,18 +382,23 @@ function ImprovementChart() {
 }
 
 function PatientGamesPanel() {
+  const { lang, t } = useTranslation()
   const [word, setWord] = useState('')
   const [sound, setSound] = useState('')
   const [sentence, setSentence] = useState('')
   const [score, setScore] = useState(0)
 
-  const letters = ['S', 'H', 'P', 'E', 'A', 'C', 'T', 'R']
-  const sounds = ['ch', 'sh', 'th', 'ph']
-  const sentenceOptions = ['I can speak clearly', 'I am learning new words', 'I feel confident today']
+  const letters = lang === 'ta' ? ['கு', 'ர', 'ல்', 'பே', 'ச்', 'சு', 'ஒ', 'லி'] : ['S', 'H', 'P', 'E', 'A', 'C', 'T', 'R']
+  const sounds = lang === 'ta' ? ['க்', 'ச்', 'த்', 'ப்'] : ['ch', 'sh', 'th', 'ph']
+  const sentenceOptions = [
+    lang === 'ta' ? 'நான் தெளிவாகப் பேச முடியும்' : t('I can speak clearly', 'I can speak clearly'),
+    lang === 'ta' ? 'நான் புதிய சொற்களைக் கற்கிறேன்' : t('I am learning new words', 'I am learning new words'),
+    lang === 'ta' ? 'நான் இன்று நம்பிக்கையுடன் உணர்கிறேன்' : t('I feel confident today', 'I feel confident today'),
+  ]
 
-  const completeWord = word.toUpperCase() === 'SPEECH'
-  const completeSound = sound === 'sh'
-  const completeSentence = sentence === 'I can speak clearly'
+  const completeWord = lang === 'ta' ? word.includes('பேச்சு') || word === 'பேச்சு' : word.toUpperCase() === 'SPEECH'
+  const completeSound = lang === 'ta' ? sound === 'ச்' : sound === 'sh'
+  const completeSentence = sentence === sentenceOptions[0]
 
   const handleLetter = (letter) => {
     if (word.length >= 6) return
@@ -395,17 +417,17 @@ function PatientGamesPanel() {
     <div className="rounded-[28px] border border-emerald-100 bg-white p-5 shadow-sm">
       <div className="mb-4 flex items-center justify-between">
         <div>
-          <h3 className="text-xl font-bold text-slate-900">Interactive therapy games</h3>
-          <p className="text-sm text-slate-500">Build confidence with playful speech drills</p>
+          <h3 className="text-xl font-bold text-slate-900">{t('interactiveGamesTitle', 'Interactive therapy games')}</h3>
+          <p className="text-sm text-slate-500">{t('interactiveGamesDesc', 'Build confidence with playful speech drills')}</p>
         </div>
-        <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-emerald-700">Score {score}/3</span>
+        <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-emerald-700">{t('currentScore', 'Score')} {score}/3</span>
       </div>
 
       <div className="space-y-4">
         <div className="rounded-2xl border border-slate-100 bg-emerald-50 p-4">
-          <p className="mb-2 text-sm font-semibold text-slate-700">1. Word builder</p>
+          <p className="mb-2 text-sm font-semibold text-slate-700">{t('wordBuilder', '1. Word builder')}</p>
           <div className="mb-3 flex min-h-10 flex-wrap gap-2 rounded-xl bg-white px-3 py-2 text-lg font-bold text-slate-700">
-            {word || 'Tap letters to build the word'}
+            {word || t('tapLettersToBuild', 'Tap letters to build the word')}
           </div>
           <div className="flex flex-wrap gap-2">
             {letters.map((letter) => (
@@ -414,11 +436,11 @@ function PatientGamesPanel() {
               </button>
             ))}
           </div>
-          {completeWord && <p className="mt-2 text-xs font-semibold text-emerald-700">Great job! You built the correct word.</p>}
+          {completeWord && <p className="mt-2 text-xs font-semibold text-emerald-700">{t('greatJobBuiltWord', 'Great job! You built the correct word.')}</p>}
         </div>
 
         <div className="rounded-2xl border border-slate-100 bg-sky-50 p-4">
-          <p className="mb-2 text-sm font-semibold text-slate-700">2. Sound match</p>
+          <p className="mb-2 text-sm font-semibold text-slate-700">{t('soundMatch', '2. Sound match')}</p>
           <div className="flex flex-wrap gap-2">
             {sounds.map((option) => (
               <button
@@ -431,11 +453,11 @@ function PatientGamesPanel() {
               </button>
             ))}
           </div>
-          {completeSound && <p className="mt-2 text-xs font-semibold text-emerald-700">Perfect! That is the correct sound.</p>}
+          {completeSound && <p className="mt-2 text-xs font-semibold text-emerald-700">{t('perfectCorrectSound', 'Perfect! That is the correct sound.')}</p>}
         </div>
 
         <div className="rounded-2xl border border-slate-100 bg-violet-50 p-4">
-          <p className="mb-2 text-sm font-semibold text-slate-700">3. Sentence builder</p>
+          <p className="mb-2 text-sm font-semibold text-slate-700">{t('sentenceBuilder', '3. Sentence builder')}</p>
           <div className="flex flex-wrap gap-2">
             {sentenceOptions.map((option) => (
               <button
@@ -448,11 +470,11 @@ function PatientGamesPanel() {
               </button>
             ))}
           </div>
-          {completeSentence && <p className="mt-2 text-xs font-semibold text-emerald-700">Excellent sentence choice.</p>}
+          {completeSentence && <p className="mt-2 text-xs font-semibold text-emerald-700">{t('excellentSentenceChoice', 'Excellent sentence choice.')}</p>}
         </div>
 
         <button type="button" onClick={handleCheck} className="w-full rounded-xl bg-gradient-to-r from-emerald-400 to-teal-500 px-4 py-3 font-bold text-white shadow-lg shadow-emerald-500/20 transition hover:-translate-y-0.5">
-          Check my progress
+          {t('checkMyProgress', 'Check my progress')}
         </button>
       </div>
     </div>
@@ -460,8 +482,43 @@ function PatientGamesPanel() {
 }
 
 function DashboardPage({ role, onStartCall }) {
-  const info = dashboardContentByRole[role] || dashboardContentByRole.Patient
-  const stats = statsByRole[role] || statsByRole.Patient
+  const { t } = useTranslation()
+  const rawInfo = dashboardContentByRole[role] || dashboardContentByRole.Patient
+  const info = {
+    kicker: t(`kicker${role}`, rawInfo.kicker),
+    title: t(`title${role}`, rawInfo.title),
+    description: t(`desc${role}`, rawInfo.description),
+    badgeOne: t(`badgeOne${role}`, rawInfo.badgeOne),
+    badgeTwo: t(`badgeTwo${role}`, rawInfo.badgeTwo),
+  }
+
+  const stats = (statsByRole[role] || statsByRole.Patient).map((s) => ({
+    ...s,
+    label: t(
+      s.label === 'Weekly goal' ? 'statWeeklyGoal' :
+      s.label === 'Completed' ? 'statCompleted' :
+      s.label === 'Therapy score' ? 'statTherapyScore' :
+      s.label === 'Upcoming' ? 'statUpcoming' :
+      s.label === 'Care coverage' ? 'statCareCoverage' :
+      s.label === 'Active members' ? 'statActiveMembers' :
+      s.label === 'Plan health' ? 'statPlanHealth' :
+      s.label === 'Check-ins' ? 'statCheckIns' :
+      s.label === 'Session load' ? 'statSessionLoad' :
+      s.label === 'Resolved' ? 'statResolvedCases' :
+      s.label === 'Recovery score' ? 'statRecoveryScore' :
+      s.label === 'Follow-ups' ? 'statFollowUps' :
+      s.label === 'Team health' ? 'statTeamHealth' :
+      s.label === 'Ongoing cases' ? 'statOngoingCases' :
+      s.label === 'Retention' ? 'statRetentionRate' :
+      s.label === 'Reviews' ? 'statPendingReviews' :
+      s.label === 'System uptime' ? 'statSystemUptime' :
+      s.label === 'Active users' ? 'statActiveUsers' :
+      s.label === 'Operations rate' ? 'statOpsRate' :
+      s.label === 'Alerts' ? 'statAlerts' : s.label,
+      s.label
+    ),
+  }))
+
   const appointments = appointmentTemplates[role] || appointmentTemplates.Patient
   const updates = updatesByRole[role] || updatesByRole.Patient
   const community = communityItemsByRole[role] || communityItemsByRole.Patient
@@ -479,7 +536,7 @@ function DashboardPage({ role, onStartCall }) {
             onClick={() => navigate('/assistant')}
             className="mt-6 rounded-full bg-slate-900 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-slate-900/15 transition hover:-translate-y-0.5"
           >
-            View care plan
+            {t('viewCarePlan', 'View care plan')}
           </button>
         </div>
 
@@ -515,8 +572,8 @@ function DashboardPage({ role, onStartCall }) {
       <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
         <div className="rounded-[28px] border border-slate-100 bg-white p-5 shadow-sm">
           <div className="mb-4">
-            <h3 className="text-xl font-bold text-slate-900">Priority goals</h3>
-            <p className="text-sm text-slate-500">Focus areas for today</p>
+            <h3 className="text-xl font-bold text-slate-900">{t('activeGoalsTitle', 'Priority goals')}</h3>
+            <p className="text-sm text-slate-500">{t('Focus areas for today', 'Focus areas for today')}</p>
           </div>
 
           <div className="space-y-4">
@@ -530,11 +587,11 @@ function DashboardPage({ role, onStartCall }) {
                   {goal.done ? '✓' : ''}
                 </div>
                 <div className="flex-1">
-                  <p className="font-semibold text-slate-800">{goal.title}</p>
-                  <p className="text-xs text-slate-500">{goal.detail}</p>
+                  <p className="font-semibold text-slate-800">{t(goal.title, goal.title)}</p>
+                  <p className="text-xs text-slate-500">{t(goal.detail, goal.detail)}</p>
                 </div>
                 <span className={`rounded-full px-2.5 py-1 text-[10px] font-bold ${goal.done ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
-                  {goal.status}
+                  {t(goal.status, goal.status)}
                 </span>
               </div>
             ))}
@@ -543,8 +600,8 @@ function DashboardPage({ role, onStartCall }) {
 
         <div className="rounded-[28px] border border-slate-100 bg-white p-5 shadow-sm">
           <div className="mb-4">
-            <h3 className="text-xl font-bold text-slate-900">Next appointment</h3>
-            <p className="text-sm text-slate-500">Scheduled video sessions</p>
+            <h3 className="text-xl font-bold text-slate-900">{t('nextSessionTitle', 'Next appointment')}</h3>
+            <p className="text-sm text-slate-500">{t('scheduledVideoSessions', 'Scheduled video sessions')}</p>
           </div>
 
           <div className="space-y-3">
@@ -558,11 +615,11 @@ function DashboardPage({ role, onStartCall }) {
                     <div className="flex items-center gap-2">
                       <p className="font-bold text-slate-900">{item.doctor}</p>
                       <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[9px] font-bold text-emerald-800">
-                        {item.status || 'Scheduled'}
+                        {t(item.status, item.status || 'Scheduled')}
                       </span>
                     </div>
-                    <p className="text-xs text-slate-500">{item.specialty || 'Specialist'} • {item.time}</p>
-                    <p className="text-[11px] font-semibold text-emerald-700">{item.note}</p>
+                    <p className="text-xs text-slate-500">{t(item.specialty, item.specialty || 'Specialist')} • {t(item.time, item.time)}</p>
+                    <p className="text-[11px] font-semibold text-emerald-700">{t(item.note, item.note)}</p>
                   </div>
                 </div>
 
@@ -572,7 +629,7 @@ function DashboardPage({ role, onStartCall }) {
                   className="flex items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 px-3.5 py-2 text-xs font-bold text-white shadow-md shadow-emerald-500/20 transition hover:-translate-y-0.5 hover:shadow-lg"
                 >
                   <span>📹</span>
-                  <span>Join Call</span>
+                  <span>{t('joinCallBtn', 'Join Call')}</span>
                 </button>
               </div>
             ))}
@@ -584,20 +641,20 @@ function DashboardPage({ role, onStartCall }) {
         <div className="rounded-[28px] border border-slate-100 bg-white p-5 shadow-sm">
           <div className="mb-4 flex items-center justify-between">
             <div>
-              <h3 className="text-xl font-bold text-slate-900">Therapy updates</h3>
-              <p className="text-sm text-slate-500">Recent progress</p>
+              <h3 className="text-xl font-bold text-slate-900">{t('recentUpdatesTitle', 'Therapy updates')}</h3>
+              <p className="text-sm text-slate-500">{t('recentProgress', 'Recent progress')}</p>
             </div>
-            <button type="button" className="text-sm font-semibold text-emerald-700">View all</button>
+            <button type="button" className="text-sm font-semibold text-emerald-700">{t('viewAll', 'View all')}</button>
           </div>
 
           <div className="space-y-4">
             {updates.map((item) => (
               <div key={item.title} className="rounded-2xl border border-slate-100 bg-slate-50 p-3">
                 <div className="flex items-center justify-between gap-2">
-                  <p className="font-semibold text-slate-800">{item.title}</p>
-                  <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">{item.time}</span>
+                  <p className="font-semibold text-slate-800">{t(item.title, item.title)}</p>
+                  <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">{t(item.time, item.time)}</span>
                 </div>
-                <p className="mt-1 text-sm text-slate-600">{item.detail}</p>
+                <p className="mt-1 text-sm text-slate-600">{t(item.detail, item.detail)}</p>
               </div>
             ))}
           </div>
@@ -605,18 +662,18 @@ function DashboardPage({ role, onStartCall }) {
 
         <div className="rounded-[28px] border border-slate-100 bg-white p-5 shadow-sm">
           <div className="mb-4">
-            <h3 className="text-xl font-bold text-slate-900">Community</h3>
-            <p className="text-sm text-slate-500">Care circles</p>
+            <h3 className="text-xl font-bold text-slate-900">{t('community', 'Community')}</h3>
+            <p className="text-sm text-slate-500">{t('careCircles', 'Care circles')}</p>
           </div>
 
           <div className="space-y-4">
             {community.map((item) => (
               <div key={item.title} className="flex items-center justify-between rounded-2xl border border-slate-100 bg-slate-50 p-3">
                 <div>
-                  <p className="font-semibold text-slate-800">{item.title}</p>
-                  <p className="text-sm text-slate-500">{item.detail}</p>
+                  <p className="font-semibold text-slate-800">{t(item.title, item.title)}</p>
+                  <p className="text-sm text-slate-500">{t(item.detail, item.detail)}</p>
                 </div>
-                <span className="rounded-full bg-emerald-100 px-2 py-1 text-[10px] font-bold uppercase text-emerald-700">{item.badge}</span>
+                <span className="rounded-full bg-emerald-100 px-2 py-1 text-[10px] font-bold uppercase text-emerald-700">{t(item.badge, item.badge)}</span>
               </div>
             ))}
           </div>
@@ -627,12 +684,13 @@ function DashboardPage({ role, onStartCall }) {
 }
 
 function GenericPage({ title, description, cards }) {
+  const { lang, t } = useTranslation()
   return (
     <section className="relative z-10 space-y-6">
       <div className="rounded-[28px] border border-slate-100 bg-white p-6 shadow-sm">
         <p className="text-xs font-semibold uppercase tracking-[0.22em] text-emerald-600">VOXTECH</p>
-        <h2 className="mt-2 text-3xl font-bold text-slate-900">{title}</h2>
-        <p className="mt-2 text-slate-600">{description}</p>
+        <h2 className="mt-2 text-3xl font-bold text-slate-900">{t(title, title)}</h2>
+        <p className="mt-2 text-slate-600">{t(description, description)}</p>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -640,10 +698,10 @@ function GenericPage({ title, description, cards }) {
           <div key={card.title} className="rounded-[24px] border border-slate-100 bg-white p-5 shadow-sm">
             <div className="mb-3 flex items-center justify-between">
               <span className="text-2xl">{card.icon}</span>
-              {card.badge ? <span className="rounded-full bg-emerald-100 px-2 py-1 text-[10px] font-bold uppercase text-emerald-700">{card.badge}</span> : null}
+              {card.badge ? <span className="rounded-full bg-emerald-100 px-2 py-1 text-[10px] font-bold uppercase text-emerald-700">{t(card.badge, card.badge)}</span> : null}
             </div>
-            <h3 className="text-lg font-bold text-slate-900">{card.title}</h3>
-            <p className="mt-2 text-sm text-slate-600">{card.detail}</p>
+            <h3 className="text-lg font-bold text-slate-900">{t(card.title, card.title)}</h3>
+            <p className="mt-2 text-sm text-slate-600">{t(card.detail, card.detail)}</p>
           </div>
         ))}
       </div>
@@ -652,39 +710,50 @@ function GenericPage({ title, description, cards }) {
 }
 
 function AppointmentsPage({ role, onStartCall }) {
+  const { t } = useTranslation()
   const [filter, setFilter] = useState('All')
   const [showBookModal, setShowBookModal] = useState(false)
-  const [bookSuccess, setBookSuccess] = useState('')
-  const [doctorName, setDoctorName] = useState('Dr. Priya Sharma')
-  const [sessionTime, setSessionTime] = useState('Tomorrow, 3:00 PM')
-  const [notes, setNotes] = useState('Speech therapy follow-up')
+  const [showScheduleModal, setShowScheduleModal] = useState(false)
 
   const initialList = appointmentTemplates[role] || appointmentTemplates.Patient
   const [appointmentList, setAppointmentList] = useState(initialList)
 
-  const handleBookSubmit = (e) => {
-    e.preventDefault()
-    if (!doctorName.trim()) return
-    const newApt = {
-      id: `apt-${Date.now()}`,
-      doctor: doctorName,
-      specialty: 'Speech & Language Therapist',
-      time: sessionTime || 'Tomorrow, 3:00 PM',
-      note: notes || 'General check-in & therapy drill',
-      roomCode: `VOX-${Math.floor(1000 + Math.random() * 9000)}`,
-      status: 'Upcoming',
-      avatar: '👩‍⚕️',
+  // Fetch real-time appointments from server
+  useEffect(() => {
+    const token = window.localStorage.getItem('voxtech-token')
+    fetch('/api/appointments', {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data && data.appointments && data.appointments.length > 0) {
+          setAppointmentList(data.appointments)
+        }
+      })
+      .catch(() => {})
+  }, [])
+
+  const handleCancelAppointment = async (id) => {
+    if (!window.confirm('Are you sure you want to cancel this appointment? This slot will immediately open for other patients.')) return
+    try {
+      const token = window.localStorage.getItem('voxtech-token')
+      const res = await fetch(`/api/appointments/${id}`, {
+        method: 'DELETE',
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      })
+      if (res.ok) {
+        setAppointmentList((prev) => prev.map((a) => (a.id === id ? { ...a, status: 'Cancelled' } : a)))
+      } else {
+        const err = await res.json().catch(() => ({}))
+        alert(err.error || 'Could not cancel this appointment.')
+      }
+    } catch {
+      setAppointmentList((prev) => prev.map((a) => (a.id === id ? { ...a, status: 'Cancelled' } : a)))
     }
-    setAppointmentList((current) => [newApt, ...current])
-    setBookSuccess('Appointment scheduled successfully!')
-    setTimeout(() => {
-      setShowBookModal(false)
-      setBookSuccess('')
-    }, 1500)
   }
 
   const filtered = appointmentList.filter((item) => {
-    if (filter === 'Upcoming') return item.status === 'Starting Soon' || item.status === 'Upcoming' || item.status === 'Scheduled'
+    if (filter === 'Upcoming') return item.status === 'Starting Soon' || item.status === 'Upcoming' || item.status === 'Scheduled' || item.status === 'Confirmed'
     if (filter === 'Completed') return item.status === 'Completed'
     return true
   })
@@ -695,50 +764,65 @@ function AppointmentsPage({ role, onStartCall }) {
       <div className="flex flex-col gap-4 rounded-[28px] bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-700 p-6 text-white shadow-xl shadow-emerald-900/10 lg:flex-row lg:items-center lg:justify-between">
         <div>
           <span className="inline-block rounded-full bg-white/20 px-3 py-1 text-xs font-semibold uppercase tracking-wider backdrop-blur-md">
-            Telehealth & Care Consultations
+            {t('telehealthHeader', 'Telehealth & Care Consultations')}
           </span>
-          <h2 className="mt-2 text-2xl font-bold lg:text-3xl">Appointments & Video Consults</h2>
+          <h2 className="mt-2 text-2xl font-bold lg:text-3xl">{t('appointmentsTitle', 'Appointments & Video Consults')}</h2>
           <p className="mt-1 max-w-xl text-xs text-emerald-100/90 lg:text-sm">
             Connect directly with your appointed doctor or therapist via HD encrypted video call with live Sarvam AI speech captions.
           </p>
         </div>
 
-        <button
-          type="button"
-          onClick={() => setShowBookModal(true)}
-          className="flex items-center justify-center gap-2 rounded-2xl bg-white px-5 py-3 text-sm font-bold text-emerald-900 shadow-lg transition hover:-translate-y-0.5 hover:bg-emerald-50"
-        >
-          <span>➕</span>
-          <span>Book Appointment</span>
-        </button>
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setShowScheduleModal(true)}
+            className="flex items-center justify-center gap-2 rounded-2xl bg-emerald-950/40 border border-white/20 px-4 py-3 text-sm font-bold text-white shadow-md transition hover:bg-emerald-950/60"
+          >
+            <span>⚙️</span>
+            <span>{t('configureSlots', 'Therapist: Configure Slots')}</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setShowBookModal(true)}
+            className="flex items-center justify-center gap-2 rounded-2xl bg-white px-5 py-3 text-sm font-bold text-emerald-900 shadow-lg transition hover:-translate-y-0.5 hover:bg-emerald-50"
+          >
+            <span>➕</span>
+            <span>{t('bookAppointment', 'Book Appointment')}</span>
+          </button>
+        </div>
       </div>
 
       {/* Stats row */}
       <div className="grid gap-4 sm:grid-cols-3">
         <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
-          <p className="text-xs text-slate-500">Upcoming Consultations</p>
-          <p className="mt-1 text-2xl font-bold text-slate-900">{appointmentList.length}</p>
+          <p className="text-xs text-slate-500">{t('upcomingConsultations', 'Upcoming Consultations')}</p>
+          <p className="mt-1 text-2xl font-bold text-slate-900">{appointmentList.filter(a => a.status !== 'Cancelled').length}</p>
         </div>
         <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
-          <p className="text-xs text-slate-500">Encrypted Video Rooms</p>
+          <p className="text-xs text-slate-500">{t('encryptedVideoRooms', 'Encrypted Video Rooms')}</p>
           <p className="mt-1 text-2xl font-bold text-emerald-600">Active HD</p>
         </div>
         <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
-          <p className="text-xs text-slate-500">AI Speech Assistant</p>
-          <p className="mt-1 text-2xl font-bold text-teal-600">Sarvam AI Enabled</p>
+          <p className="text-xs text-slate-500">{t('smartEngine', 'Smart Availability Engine')}</p>
+          <p className="mt-1 text-2xl font-bold text-teal-600">Conflict-Free Enabled</p>
         </div>
       </div>
 
       {/* Filter Tabs */}
       <div className="flex items-center gap-2 border-b border-slate-200 pb-3">
-        {['All', 'Upcoming', 'Completed'].map((tab) => (
+        {[
+          { id: 'All', label: t('allAppointments', 'All') },
+          { id: 'Upcoming', label: t('upcomingTab', 'Upcoming') },
+          { id: 'Completed', label: t('completedTab', 'Completed') },
+        ].map((tab) => (
           <button
-            key={tab}
+            key={tab.id}
             type="button"
-            onClick={() => setFilter(tab)}
-            className={`rounded-xl px-4 py-2 text-xs font-bold transition ${filter === tab ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+            onClick={() => setFilter(tab.id)}
+            className={`rounded-xl px-4 py-2 text-xs font-bold transition ${filter === tab.id ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
           >
-            {tab} Appointments
+            {tab.label}
           </button>
         ))}
       </div>
@@ -746,21 +830,21 @@ function AppointmentsPage({ role, onStartCall }) {
       {/* Appointment Cards */}
       <div className="grid gap-4 md:grid-cols-2">
         {filtered.map((item) => (
-          <div key={item.id} className="relative flex flex-col justify-between overflow-hidden rounded-[24px] border border-slate-100 bg-white p-5 shadow-sm transition hover:shadow-md">
+          <div key={item.id} className={`relative flex flex-col justify-between overflow-hidden rounded-[24px] border border-slate-100 bg-white p-5 shadow-sm transition hover:shadow-md ${item.status === 'Cancelled' ? 'opacity-50 grayscale' : ''}`}>
             <div>
               <div className="flex items-start justify-between gap-3">
                 <div className="flex items-center gap-3">
                   <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-100 via-teal-100 to-cyan-100 text-3xl shadow-sm">
-                    {item.avatar}
+                    {item.avatar || '👩‍⚕️'}
                   </div>
                   <div>
                     <h3 className="font-bold text-slate-900">{item.doctor}</h3>
                     <p className="text-xs text-slate-500">{item.specialty}</p>
-                    <p className="mt-1 text-xs font-semibold text-emerald-700">Room: {item.roomCode}</p>
+                    <p className="mt-1 text-xs font-semibold text-emerald-700">{t('roomCode', 'Room')}: {item.roomCode}</p>
                   </div>
                 </div>
 
-                <span className={`rounded-full px-3 py-1 text-[10px] font-bold ${item.status === 'Starting Soon' ? 'animate-pulse bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-700'}`}>
+                <span className={`rounded-full px-3 py-1 text-[10px] font-bold ${item.status === 'Starting Soon' ? 'animate-pulse bg-emerald-100 text-emerald-800' : item.status === 'Cancelled' ? 'bg-rose-100 text-rose-800' : 'bg-slate-100 text-slate-700'}`}>
                   {item.status}
                 </span>
               </div>
@@ -772,88 +856,50 @@ function AppointmentsPage({ role, onStartCall }) {
             </div>
 
             <div className="mt-5 flex gap-2 pt-2 border-t border-slate-100">
-              <button
-                type="button"
-                onClick={() => onStartCall(item)}
-                className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 px-4 py-2.5 text-xs font-bold text-white shadow-md shadow-emerald-500/20 transition hover:-translate-y-0.5 hover:shadow-lg"
-              >
-                <span>📹</span>
-                <span>Start Video Call</span>
-              </button>
+              {item.status !== 'Cancelled' && (
+                <button
+                  type="button"
+                  onClick={() => onStartCall(item)}
+                  className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 px-4 py-2.5 text-xs font-bold text-white shadow-md shadow-emerald-500/20 transition hover:-translate-y-0.5 hover:shadow-lg"
+                >
+                  <span>📹</span>
+                  <span>{t('startVideoCall', 'Start Video Call')}</span>
+                </button>
+              )}
 
-              <button
-                type="button"
-                onClick={() => alert(`Room Code: ${item.roomCode}\nDoctor: ${item.doctor}\nNotes: ${item.note}`)}
-                className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
-              >
-                📋 Details
-              </button>
+              {item.status !== 'Cancelled' && (
+                <button
+                  type="button"
+                  onClick={() => handleCancelAppointment(item.id)}
+                  className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-700 hover:bg-rose-100"
+                >
+                  {t('cancel', 'Cancel')}
+                </button>
+              )}
             </div>
           </div>
         ))}
       </div>
 
-      {/* Book Appointment Modal */}
-      {showBookModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-md rounded-3xl border border-emerald-100 bg-white p-6 shadow-2xl">
-            <div className="flex items-center justify-between border-b pb-4">
-              <h3 className="text-lg font-bold text-slate-900">Book New Appointment</h3>
-              <button type="button" onClick={() => setShowBookModal(false)} className="rounded-full bg-slate-100 p-1.5 text-xs text-slate-600">✕</button>
-            </div>
+      {/* Smart Appointment Booking Modal */}
+      <SmartAppointmentBooking
+        isOpen={showBookModal}
+        onClose={() => setShowBookModal(false)}
+        onBookingSuccess={(newApt) => {
+          setAppointmentList((current) => [newApt, ...current.filter((a) => a.id !== newApt.id)])
+        }}
+      />
 
-            {bookSuccess ? (
-              <div className="my-6 rounded-2xl bg-emerald-50 p-4 text-center text-sm font-bold text-emerald-800">
-                {bookSuccess}
-              </div>
-            ) : (
-              <form onSubmit={handleBookSubmit} className="mt-4 space-y-4">
-                <div>
-                  <label className="block text-xs font-bold uppercase text-slate-600">Doctor / Practitioner Name</label>
-                  <input
-                    type="text"
-                    value={doctorName}
-                    onChange={(e) => setDoctorName(e.target.value)}
-                    className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-emerald-500"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold uppercase text-slate-600">Date & Time</label>
-                  <input
-                    type="text"
-                    value={sessionTime}
-                    onChange={(e) => setSessionTime(e.target.value)}
-                    className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-emerald-500"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold uppercase text-slate-600">Therapy Topic / Notes</label>
-                  <textarea
-                    value={notes}
-                    onChange={(e) => setNotes(e.target.value)}
-                    className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-emerald-500"
-                    rows={3}
-                  />
-                </div>
-
-                <div className="flex justify-end gap-2 pt-2">
-                  <button type="button" onClick={() => setShowBookModal(false)} className="rounded-xl px-4 py-2 text-xs font-semibold text-slate-600">Cancel</button>
-                  <button type="submit" className="rounded-xl bg-emerald-600 px-5 py-2 text-xs font-bold text-white shadow-md shadow-emerald-600/20">Confirm Appointment</button>
-                </div>
-              </form>
-            )}
-          </div>
-        </div>
-      )}
+      {/* Therapist Schedule & Slot Manager Modal */}
+      <TherapistScheduleManager
+        isOpen={showScheduleModal}
+        onClose={() => setShowScheduleModal(false)}
+      />
     </div>
   )
 }
 
-function VideoCallModal({ appointment, role, onClose }) {
+function VideoCallModal({ appointment, role, userName, onClose }) {
   const [isMuted, setIsMuted] = useState(false)
   const [isVideoOff, setIsVideoOff] = useState(false)
   const [showCaptions, setShowCaptions] = useState(true)
@@ -866,11 +912,68 @@ function VideoCallModal({ appointment, role, onClose }) {
   const [aiTip, setAiTip] = useState('')
   const [isAiLoading, setIsAiLoading] = useState(false)
 
+  const [showNetworkDetails, setShowNetworkDetails] = useState(false)
+  const [peerName, setPeerName] = useState(role === 'Therapist' ? 'Patient' : (appointment?.doctor || 'Therapist'))
+  const [hasPeerJoined, setHasPeerJoined] = useState(false)
+  const [peerEndedCallMessage, setPeerEndedCallMessage] = useState('')
+
+  // Call Recording State
+  const [isRecording, setIsRecording] = useState(false)
+  const [recordingSeconds, setRecordingSeconds] = useState(0)
+  const [recordedBlobUrl, setRecordedBlobUrl] = useState(null)
+  const mediaRecorderRef = useRef(null)
+  const recordedChunksRef = useRef([])
+
   const localVideoRef = useRef(null)
   const remoteVideoRef = useRef(null)
   const mediaStreamRef = useRef(null)
   const peerConnectionRef = useRef(null)
   const socketRef = useRef(null)
+
+  const { networkStatus, stats: networkStats, issueDetails } = useNetworkQuality(
+    peerConnectionRef,
+    !callEnded
+  )
+
+  useEffect(() => {
+    if (!isRecording) return
+    const timer = setInterval(() => setRecordingSeconds((prev) => prev + 1), 1000)
+    return () => clearInterval(timer)
+  }, [isRecording])
+
+  const toggleRecording = () => {
+    if (isRecording) {
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+        mediaRecorderRef.current.stop()
+      }
+      setIsRecording(false)
+    } else {
+      if (!mediaStreamRef.current) return
+      recordedChunksRef.current = []
+      try {
+        const options = MediaRecorder.isTypeSupported('video/webm;codecs=vp9')
+          ? { mimeType: 'video/webm;codecs=vp9' }
+          : { mimeType: 'video/webm' }
+        const recorder = new MediaRecorder(mediaStreamRef.current, options)
+        recorder.ondataavailable = (e) => {
+          if (e.data && e.data.size > 0) {
+            recordedChunksRef.current.push(e.data)
+          }
+        }
+        recorder.onstop = () => {
+          const blob = new Blob(recordedChunksRef.current, { type: 'video/webm' })
+          const url = URL.createObjectURL(blob)
+          setRecordedBlobUrl(url)
+        }
+        recorder.start(1000)
+        mediaRecorderRef.current = recorder
+        setIsRecording(true)
+        setRecordingSeconds(0)
+      } catch (err) {
+        console.error('Recording failed:', err)
+      }
+    }
+  }
 
   useEffect(() => {
     if (callEnded) return
@@ -899,35 +1002,80 @@ function VideoCallModal({ appointment, role, onClose }) {
     return () => clearInterval(captionInterval)
   }, [callEnded])
 
+  const [hasCameraPermission, setHasCameraPermission] = useState(true)
+  const [mediaNotice, setMediaNotice] = useState('')
+
   useEffect(() => {
     let active = true
 
     async function initMediaAndWebRTC() {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: true,
-          audio: true,
-        })
-        if (!active) return
-        mediaStreamRef.current = stream
+      let stream = null
 
-        if (localVideoRef.current) {
-          localVideoRef.current.srcObject = stream
-        }
-
+      // Attempt to acquire camera and microphone
+      if (typeof navigator !== 'undefined' && navigator.mediaDevices?.getUserMedia) {
         try {
-          const socket = io('/', { path: '/socket.io/' })
-          socketRef.current = socket
+          stream = await navigator.mediaDevices.getUserMedia({
+            video: true,
+            audio: true,
+          })
+          if (!active) {
+            stream.getTracks().forEach((t) => t.stop())
+            return
+          }
+          mediaStreamRef.current = stream
+          setHasCameraPermission(true)
+          if (localVideoRef.current) {
+            localVideoRef.current.srcObject = stream
+          }
+        } catch (mediaErr) {
+          console.warn('Camera/Mic permission warning:', mediaErr)
+          setHasCameraPermission(false)
+          setMediaNotice('Camera access restricted. Interactive video session is active in clinical avatar mode.')
+          // Try audio-only if video failed
+          try {
+            const audioOnly = await navigator.mediaDevices.getUserMedia({ audio: true })
+            if (active && audioOnly) {
+              mediaStreamRef.current = audioOnly
+            }
+          } catch (audioErr) {
+            console.warn('Audio device access also restricted:', audioErr)
+          }
+        }
+      } else {
+        setHasCameraPermission(false)
+        setMediaNotice('Media devices not detected on current environment. Avatar consultation active.')
+      }
 
-          const roomCode = appointment?.roomCode || 'VOX-7829'
-          socket.emit('join-room', { roomId: roomCode, userRole: role, userName: appointment?.doctor })
+      // Initialize Socket.io and room signaling independently of camera status
+      try {
+        const socket = io('/', { path: '/socket.io/' })
+        socketRef.current = socket
 
+        const roomCode = appointment?.roomCode || 'VOX-7829'
+        const callerName = role === 'Therapist'
+          ? (appointment?.doctor || 'Dr. Priya Sharma')
+          : (userName || appointment?.doctor || 'Patient')
+
+        socket.emit('join-room', { roomId: roomCode, userRole: role, userName: callerName })
+
+        // Emit real-time call started notification across app
+        socket.emit('start-call-notification', {
+          callerName,
+          callerRole: role,
+          roomCode,
+          doctorName: appointment?.doctor,
+          appointment,
+        })
+
+        if (typeof RTCPeerConnection !== 'undefined') {
           const pc = new RTCPeerConnection({
             iceServers: [{ urls: 'stun:stun.l.google.com:19302' }],
           })
           peerConnectionRef.current = pc
 
-          stream.getTracks().forEach((track) => pc.addTrack(track, stream))
+          if (stream) {
+            stream.getTracks().forEach((track) => pc.addTrack(track, stream))
+          }
 
           pc.ontrack = (event) => {
             if (remoteVideoRef.current && event.streams[0]) {
@@ -943,6 +1091,31 @@ function VideoCallModal({ appointment, role, onClose }) {
               })
             }
           }
+
+          socket.on('peer-joined', async ({ userName: peerName }) => {
+            setPeerName(peerName || 'Participant')
+            setHasPeerJoined(true)
+            try {
+              if (peerConnectionRef.current) {
+                const offer = await peerConnectionRef.current.createOffer()
+                await peerConnectionRef.current.setLocalDescription(offer)
+                socket.emit('webrtc-signal', {
+                  roomId: roomCode,
+                  payload: { type: 'offer', offer },
+                })
+              }
+            } catch (err) {
+              console.error('Error creating offer on peer-joined:', err)
+            }
+          })
+
+          socket.on('call-ended-by-peer', ({ endedBy }) => {
+            setPeerEndedCallMessage(`Session ended by ${endedBy || 'the other participant'}.`)
+            if (mediaStreamRef.current) {
+              mediaStreamRef.current.getTracks().forEach((track) => track.stop())
+            }
+            setCallEnded(true)
+          })
 
           socket.on('webrtc-signal', async ({ payload }) => {
             if (!payload || !peerConnectionRef.current) return
@@ -961,11 +1134,9 @@ function VideoCallModal({ appointment, role, onClose }) {
               console.error('WebRTC signal handling error:', err)
             }
           })
-        } catch (sockErr) {
-          console.warn('Socket.IO connection skipped:', sockErr)
         }
-      } catch (err) {
-        console.warn('Microphone/Camera permission not granted:', err)
+      } catch (sockErr) {
+        console.warn('Socket.IO connection skipped:', sockErr)
       }
     }
 
@@ -983,7 +1154,7 @@ function VideoCallModal({ appointment, role, onClose }) {
         socketRef.current.disconnect()
       }
     }
-  }, [appointment, role])
+  }, [appointment, role, userName])
 
   const toggleMute = () => {
     if (mediaStreamRef.current) {
@@ -1028,8 +1199,17 @@ function VideoCallModal({ appointment, role, onClose }) {
   }
 
   const handleEndCall = () => {
+    if (isRecording && mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      mediaRecorderRef.current.stop()
+      setIsRecording(false)
+    }
     if (mediaStreamRef.current) {
       mediaStreamRef.current.getTracks().forEach((track) => track.stop())
+    }
+    if (socketRef.current) {
+      const roomCode = appointment?.roomCode || 'VOX-7829'
+      const callerName = role === 'Therapist' ? (appointment?.doctor || 'Dr. Priya Sharma') : (userName || 'Patient')
+      socketRef.current.emit('end-call-signal', { roomCode, endedBy: callerName })
     }
     setCallEnded(true)
   }
@@ -1047,7 +1227,9 @@ function VideoCallModal({ appointment, role, onClose }) {
           <div className="bg-gradient-to-r from-emerald-600 to-teal-700 p-6 text-center">
             <span className="text-4xl">🎉</span>
             <h2 className="mt-2 text-2xl font-bold">Video Session Completed</h2>
-            <p className="text-xs text-emerald-100">Appointment with {appointment?.doctor || 'Dr. Priya Sharma'}</p>
+            <p className="text-xs text-emerald-100">
+              {peerEndedCallMessage ? peerEndedCallMessage : `Appointment with ${appointment?.doctor || 'Dr. Priya Sharma'}`}
+            </p>
           </div>
 
           <div className="space-y-4 p-6">
@@ -1068,6 +1250,22 @@ function VideoCallModal({ appointment, role, onClose }) {
                 Patient completed articulation drills and rhythmic breathing exercises. Speech clarity showed marked improvement with clear sound onset. Recommended 5 minutes of daily practice.
               </p>
             </div>
+
+            {recordedBlobUrl && (
+              <div className="rounded-2xl border border-emerald-500/30 bg-slate-800/80 p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold uppercase tracking-wider text-emerald-400">📹 Session Recording Available</span>
+                  <a
+                    href={recordedBlobUrl}
+                    download={`voxtech-session-${appointment?.roomCode || 'VOX-7829'}.webm`}
+                    className="flex items-center gap-1.5 rounded-xl bg-emerald-400 px-3.5 py-1.5 text-xs font-bold text-slate-950 hover:bg-emerald-300 shadow-md transition"
+                  >
+                    <span>⬇️</span> Download Video
+                  </a>
+                </div>
+                <video src={recordedBlobUrl} controls className="w-full rounded-xl max-h-48 bg-black object-contain" />
+              </div>
+            )}
 
             <div className="flex gap-3 pt-2">
               <button
@@ -1105,6 +1303,63 @@ function VideoCallModal({ appointment, role, onClose }) {
           </div>
 
           <div className="flex items-center gap-3">
+            {/* Auto Network Detection Indicator */}
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setShowNetworkDetails(!showNetworkDetails)}
+                className={`flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-bold transition ${
+                  networkStatus === 'excellent'
+                    ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20'
+                    : networkStatus === 'fair'
+                    ? 'border-amber-500/40 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20'
+                    : networkStatus === 'poor'
+                    ? 'border-rose-500/40 bg-rose-500/10 text-rose-300 hover:bg-rose-500/20 animate-pulse'
+                    : 'border-rose-700 bg-rose-950 text-rose-200 animate-pulse'
+                }`}
+              >
+                <span className="h-2 w-2 rounded-full bg-current" />
+                <span>
+                  {networkStatus === 'excellent'
+                    ? 'Network: Good'
+                    : networkStatus === 'fair'
+                    ? 'Network: Fair'
+                    : networkStatus === 'poor'
+                    ? 'Network: Poor'
+                    : 'Network: Offline'}
+                </span>
+                <span className="text-[10px] opacity-70">ℹ️</span>
+              </button>
+
+              {/* Diagnostic Popover Drawer */}
+              {showNetworkDetails && (
+                <div className="absolute right-0 top-10 z-50 w-64 rounded-2xl border border-slate-700 bg-slate-900/95 p-4 text-xs shadow-2xl backdrop-blur-xl">
+                  <div className="flex items-center justify-between border-b border-slate-800 pb-2 mb-3">
+                    <span className="font-bold text-white">📡 Network Health Stats</span>
+                    <button type="button" onClick={() => setShowNetworkDetails(false)} className="text-slate-400 hover:text-white">✕</button>
+                  </div>
+                  <div className="space-y-2 text-slate-300">
+                    <div className="flex justify-between">
+                      <span className="text-slate-400">Ping (RTT):</span>
+                      <span className="font-mono font-bold text-emerald-400">{networkStats.rtt} ms</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-400">Packet Loss:</span>
+                      <span className={`font-mono font-bold ${networkStats.packetLoss > 2 ? 'text-rose-400' : 'text-emerald-400'}`}>{networkStats.packetLoss}%</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-400">Bitrate:</span>
+                      <span className="font-mono font-bold text-teal-400">{(networkStats.bitrateKbps / 1000).toFixed(1)} Mbps</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-400">Connection:</span>
+                      <span className="font-bold uppercase text-slate-200">{networkStats.effectiveType}</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
             <div className="rounded-full border border-slate-700 bg-slate-800/80 px-3 py-1.5 text-xs font-mono font-bold text-emerald-400">
               ⏱️ {formatTime(callDuration)}
             </div>
@@ -1119,6 +1374,20 @@ function VideoCallModal({ appointment, role, onClose }) {
         </div>
 
         <div className="relative flex-1 bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 p-4">
+          {/* Active Recording Pill */}
+          {isRecording && (
+            <div className="absolute top-6 right-6 z-30 flex items-center gap-2 rounded-full border border-rose-500/50 bg-rose-950/90 px-3.5 py-1.5 text-xs font-mono font-bold text-rose-300 backdrop-blur-md shadow-lg animate-pulse">
+              <span className="h-2.5 w-2.5 rounded-full bg-rose-500" />
+              <span>REC {formatTime(recordingSeconds)}</span>
+            </div>
+          )}
+          {/* Network Issue Alert Banner */}
+          {issueDetails && (
+            <div className="absolute top-6 left-1/2 z-30 -translate-x-1/2 flex items-center gap-3 rounded-full border border-amber-500/40 bg-amber-950/90 px-4 py-2 text-xs font-bold text-amber-200 shadow-xl backdrop-blur-md animate-bounce">
+              <span className="text-lg">⚠️</span>
+              <span>{issueDetails}</span>
+            </div>
+          )}
           <div className="relative flex h-full w-full items-center justify-center overflow-hidden rounded-2xl border border-slate-800 bg-slate-950 shadow-inner">
             <video
               ref={remoteVideoRef}
@@ -1152,10 +1421,15 @@ function VideoCallModal({ appointment, role, onClose }) {
             </div>
 
             <div className="absolute bottom-4 right-4 z-20 h-40 w-56 overflow-hidden rounded-2xl border-2 border-emerald-500/40 bg-slate-900 shadow-2xl">
-              {isVideoOff ? (
-                <div className="flex h-full w-full flex-col items-center justify-center bg-slate-800 text-slate-400">
-                  <span className="text-2xl">📷</span>
-                  <span className="mt-1 text-[10px] font-semibold">Camera Off</span>
+              {isVideoOff || !hasCameraPermission ? (
+                <div className="flex h-full w-full flex-col items-center justify-center bg-slate-800 p-2 text-center text-slate-300">
+                  <span className="text-3xl">{!hasCameraPermission ? '👤' : '📷'}</span>
+                  <span className="mt-1 text-[11px] font-bold text-white">
+                    {!hasCameraPermission ? 'Avatar Mode' : 'Camera Off'}
+                  </span>
+                  <span className="text-[10px] text-emerald-400">
+                    {isMuted ? 'Muted 🔇' : 'Microphone Live 🎙️'}
+                  </span>
                 </div>
               ) : (
                 <video
@@ -1171,6 +1445,13 @@ function VideoCallModal({ appointment, role, onClose }) {
                 You {isMuted ? '(Muted 🔇)' : '🎙️'}
               </div>
             </div>
+
+            {mediaNotice && (
+              <div className="absolute top-4 left-1/2 z-30 -translate-x-1/2 flex items-center gap-2 rounded-full border border-teal-500/40 bg-slate-900/90 px-4 py-1.5 text-[11px] font-bold text-teal-300 shadow-xl backdrop-blur-md">
+                <span>ℹ️</span>
+                <span>{mediaNotice}</span>
+              </div>
+            )}
 
             {showCaptions && (
               <div className="absolute bottom-4 left-4 right-64 z-20 rounded-2xl border border-emerald-500/30 bg-slate-950/85 p-3 text-xs text-white shadow-xl backdrop-blur-md">
@@ -1211,6 +1492,20 @@ function VideoCallModal({ appointment, role, onClose }) {
               <span>{isVideoOff ? 'Start Video' : 'Stop Video'}</span>
             </button>
 
+            {/* Record Session Button */}
+            <button
+              type="button"
+              onClick={toggleRecording}
+              className={`flex items-center gap-2 rounded-2xl px-4 py-2.5 text-xs font-bold transition ${
+                isRecording
+                  ? 'bg-rose-600 text-white animate-pulse border border-rose-400'
+                  : 'bg-rose-500/15 border border-rose-500/30 text-rose-300 hover:bg-rose-500/25'
+              }`}
+            >
+              <span>{isRecording ? '⏹️' : '🔴'}</span>
+              <span>{isRecording ? `Stop REC (${formatTime(recordingSeconds)})` : 'Record Session'}</span>
+            </button>
+
             <button
               type="button"
               onClick={() => setShowCaptions(!showCaptions)}
@@ -1246,10 +1541,19 @@ function VideoCallModal({ appointment, role, onClose }) {
 }
 
 function AssistantPage({ role }) {
+  const { lang, t } = useTranslation()
   const [sessions, setSessions] = useState(() => {
     try {
       const saved = window.localStorage.getItem('voxtech_ai_sessions')
-      if (saved) return JSON.parse(saved)
+      if (saved) {
+        return JSON.parse(saved).map((session) => ({
+          ...session,
+          messages: session.messages.map((message) => ({
+            ...message,
+            text: typeof message.text === 'string' ? message.text.replace(/Hello Rahul[!,]?\s*/gi, '') : message.text,
+          })),
+        }))
+      }
     } catch (e) {}
     return [
       {
@@ -1260,7 +1564,9 @@ function AssistantPage({ role }) {
           {
             id: 'welcome',
             sender: 'assistant',
-            text: 'Hello! I am VOXTECH AI - your speech therapy assistant, care planner, and daily guidance engine. I am fully synchronized with your live target goals, doctor consultations, care plan, and daily logs.\n\nHow can I assist you with your speech drills, care planning, or reminders today?',
+            text: lang === 'ta'
+              ? 'வணக்கம்! நான் VOXTECH AI - உங்கள் பேச்சு சிகிச்சை உதவியாளர் மற்றும் பராமரிப்பு திட்டமிடுபவர். உங்கள் இலக்குகள் மற்றும் சந்திப்புகளுடன் நான் இணைக்கப்பட்டுள்ளேன்.\n\nஇன்று உங்கள் பேச்சுப் பயிற்சிகள் மற்றும் நினைவூட்டல்களில் நான் எவ்வாறு உதவ முடியும்?'
+              : 'Hello! I am VOXTECH AI - your speech therapy assistant, care planner, and daily guidance engine. I am fully synchronized with your live target goals, doctor consultations, care plan, and daily logs.\n\nHow can I assist you with your speech drills, care planning, or reminders today?',
             timestamp: 'Just now'
           }
         ]
@@ -1345,7 +1651,9 @@ function AssistantPage({ role }) {
         {
           id: `welcome-${Date.now()}`,
           sender: 'assistant',
-          text: 'Hello! I am VOXTECH AI. How can I help you with your speech therapy care plan or drills in this session?',
+          text: lang === 'ta'
+            ? 'வணக்கம்! நான் VOXTECH AI. இந்த அமர்வில் உங்கள் பேச்சு சிகிச்சை திட்டத்தில் எவ்வாறு உதவ முடியும்?'
+            : 'Hello! I am VOXTECH AI. How can I help you with your speech therapy care plan or drills in this session?',
           timestamp: 'Just now'
         }
       ]
@@ -1379,7 +1687,7 @@ function AssistantPage({ role }) {
     setEditingSessId(null)
   }
 
-  const handleSend = async (textToSend) => {
+  const handleSend = async (textToSend, messageExtras = {}) => {
     const msgText = (textToSend || input).trim()
     if (!msgText || loading || !activeSession) return
 
@@ -1387,6 +1695,7 @@ function AssistantPage({ role }) {
       id: `usr-${Date.now()}`,
       sender: 'user',
       text: msgText,
+      ...messageExtras,
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     }
 
@@ -1418,6 +1727,7 @@ function AssistantPage({ role }) {
         body: JSON.stringify({
           message: msgText,
           role,
+          lang,
           conversationHistory: activeSession.messages
         })
       })
@@ -1427,7 +1737,7 @@ function AssistantPage({ role }) {
         const botMsg = {
           id: `bot-${Date.now()}`,
           sender: 'assistant',
-          text: data.reply || 'Here is your guidance based on your live speech goals.',
+          text: data.reply || (lang === 'ta' ? 'உங்கள் பேச்சு இலக்குகளின் அடிப்படையில் எனது வழிகாட்டுதல் இதோ.' : 'Here is your guidance based on your live speech goals.'),
           timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
         }
 
@@ -1440,6 +1750,13 @@ function AssistantPage({ role }) {
           }
           return s
         }))
+
+        // Always Enable Voice in Chat check
+        if (window.localStorage.getItem('voxtech_auto_tts') === 'true') {
+          setTimeout(() => {
+            handlePlayTTS(botMsg.id, botMsg.text)
+          }, 350)
+        }
       } else {
         throw new Error('API Error')
       }
@@ -1447,7 +1764,9 @@ function AssistantPage({ role }) {
       const errMsg = {
         id: `err-${Date.now()}`,
         sender: 'assistant',
-        text: 'I encountered an issue connecting to VOXTECH AI. Please verify network status or try again.',
+        text: lang === 'ta'
+          ? 'VOXTECH AI உடன் இணைப்பதில் சிக்கல் ஏற்பட்டது. பிணைய நிலையைச் சரிபார்க்கவும் அல்லது மீண்டும் முயற்சிக்கவும்.'
+          : 'I encountered an issue connecting to VOXTECH AI. Please verify network status or try again.',
         timestamp: 'Just now'
       }
       setSessions(prev => prev.map(s => s.id === activeSession.id ? { ...s, messages: [...s.messages, errMsg] } : s))
@@ -1456,24 +1775,44 @@ function AssistantPage({ role }) {
     }
   }
 
-  const handleVoiceInput = () => {
-    if (!('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) {
-      alert('Speech recognition is not supported in this browser. Please type your query.')
+  const handleVoiceInput = async () => {
+    if (!navigator.mediaDevices?.getUserMedia || !window.MediaRecorder) {
+      alert('Audio recording is not supported in this browser. Please type your query.')
       return
     }
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
-    const recognition = new SpeechRecognition()
-    recognition.lang = 'en-US'
-    recognition.interimResults = false
 
-    recognition.onstart = () => setIsRecording(true)
-    recognition.onend = () => setIsRecording(false)
-    recognition.onerror = () => setIsRecording(false)
-    recognition.onresult = (e) => {
-      const transcript = e.results[0][0].transcript
-      if (transcript) handleSend(transcript)
+    let stream
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      const recorder = new MediaRecorder(stream)
+      const chunks = []
+      const stopped = new Promise((resolve) => { recorder.onstop = resolve })
+      recorder.ondataavailable = (event) => chunks.push(event.data)
+      recorder.start()
+      setIsRecording(true)
+      await new Promise((resolve) => window.setTimeout(resolve, 4000))
+      recorder.stop()
+      await stopped
+
+      const audioBlob = new Blob(chunks, { type: recorder.mimeType || 'audio/webm' })
+      const audioUrl = URL.createObjectURL(audioBlob)
+      const formData = new FormData()
+      formData.append('audio', audioBlob, 'voice-message.webm')
+      const token = window.localStorage.getItem('voxtech-token')
+      const response = await fetch('/api/speech/transcribe?provider=sarvam', {
+        method: 'POST',
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        body: formData,
+      })
+      const data = await response.json().catch(() => ({}))
+      if (!response.ok || !data.transcript) throw new Error(data.message || 'Unable to transcribe audio.')
+      handleSend(data.transcript, { audioUrl })
+    } catch (error) {
+      alert(error.message || 'Voice message failed.')
+    } finally {
+      stream?.getTracks().forEach((track) => track.stop())
+      setIsRecording(false)
     }
-    recognition.start()
   }
 
   const handlePlayTTS = async (msgId, rawText) => {
@@ -1485,6 +1824,7 @@ function AssistantPage({ role }) {
     setPlayingId(msgId)
 
     const cleanText = rawText.replace(/[*#]/g, '')
+    const ttsLang = lang === 'ta' ? 'ta-IN' : 'en-IN'
 
     try {
       const token = window.localStorage.getItem('voxtech-token')
@@ -1494,7 +1834,7 @@ function AssistantPage({ role }) {
           'Content-Type': 'application/json',
           ...(token ? { Authorization: `Bearer ${token}` } : {})
         },
-        body: JSON.stringify({ text: cleanText, target_language_code: 'hi-IN', speaker: 'ritu' })
+        body: JSON.stringify({ text: cleanText, target_language_code: ttsLang, speaker: 'ritu' })
       })
 
       if (res.ok) {
@@ -1506,12 +1846,14 @@ function AssistantPage({ role }) {
       } else {
         const synth = window.speechSynthesis
         const u = new SpeechSynthesisUtterance(cleanText)
+        u.lang = ttsLang
         u.onend = () => setPlayingId(null)
         synth.speak(u)
       }
     } catch (err) {
       const synth = window.speechSynthesis
       const u = new SpeechSynthesisUtterance(cleanText)
+      u.lang = ttsLang
       u.onend = () => setPlayingId(null)
       synth.speak(u)
     }
@@ -1611,7 +1953,7 @@ function renderCleanText(rawText) {
       return <h4 key={idx} className="font-bold text-slate-900 text-xs sm:text-sm mt-2.5 mb-1">{trimmed}</h4>
     }
     if (trimmed.startsWith('•') || trimmed.startsWith('-') || trimmed.startsWith('*')) {
-      const itemText = trimmed.replace(/^[•\-\*]\s?/, '')
+      const itemText = trimmed.replace(/^[•\-*]\s?/, '')
       return (
         <div key={idx} className="flex items-start gap-2 my-1 text-slate-700">
           <span className="text-emerald-500 font-bold shrink-0">•</span>
@@ -1671,7 +2013,7 @@ function renderCleanText(rawText) {
           >
             <div className="flex items-center gap-2">
               <span className="text-sm">➕</span>
-              <span>New Session</span>
+              <span>{t('newSession', 'New Session')}</span>
             </div>
             <span className="text-[10px] bg-emerald-700/60 px-2 py-0.5 rounded-full text-emerald-100">⌘N</span>
           </button>
@@ -1679,7 +2021,7 @@ function renderCleanText(rawText) {
 
         <div className="flex-1 overflow-y-auto px-3 py-2 space-y-1 text-xs">
           <p className="px-2 pb-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-500">
-            Recent Sessions ({sessions.length})
+            {t('recentSessions', 'Recent Sessions')} ({sessions.length})
           </p>
 
           {sessions.map((sess) => {
@@ -1718,7 +2060,7 @@ function renderCleanText(rawText) {
                     type="button"
                     onClick={(e) => handleStartRename(sess, e)}
                     className="p-1 text-slate-400 hover:text-emerald-400"
-                    title="Rename session"
+                    title={t('renameSession', 'Rename session')}
                   >
                     ✏️
                   </button>
@@ -1726,7 +2068,7 @@ function renderCleanText(rawText) {
                     type="button"
                     onClick={(e) => handleDeleteSession(sess.id, e)}
                     className="p-1 text-slate-400 hover:text-red-400"
-                    title="Delete session"
+                    title={t('deleteSession', 'Delete session')}
                   >
                     🗑️
                   </button>
@@ -1744,7 +2086,7 @@ function renderCleanText(rawText) {
               drawerOpen === 'careplan' ? 'bg-emerald-950 text-emerald-300 border border-emerald-800' : 'text-slate-300 hover:bg-slate-900'
             }`}
           >
-            <span className="flex items-center gap-2">📋 <span>Care Plan Roadmap</span></span>
+            <span className="flex items-center gap-2">📋 <span>{t('carePlanRoadmap', 'Care Plan Roadmap')}</span></span>
             <span className="text-[10px] bg-slate-800 px-2 py-0.5 rounded-full font-bold text-emerald-400">{carePlan.length}</span>
           </button>
 
@@ -1755,7 +2097,7 @@ function renderCleanText(rawText) {
               drawerOpen === 'reminders' ? 'bg-emerald-950 text-emerald-300 border border-emerald-800' : 'text-slate-300 hover:bg-slate-900'
             }`}
           >
-            <span className="flex items-center gap-2">⏰ <span>Smart Reminders</span></span>
+            <span className="flex items-center gap-2">⏰ <span>{t('smartReminders', 'Smart Reminders')}</span></span>
             <span className="text-[10px] bg-slate-800 px-2 py-0.5 rounded-full font-bold text-emerald-400">{reminders.length}</span>
           </button>
 
@@ -1766,8 +2108,8 @@ function renderCleanText(rawText) {
               drawerOpen === 'context' ? 'bg-emerald-950 text-emerald-300 border border-emerald-800' : 'text-slate-300 hover:bg-slate-900'
             }`}
           >
-            <span className="flex items-center gap-2">🔍 <span>AI Context Inspector</span></span>
-            <span className="text-[10px] text-emerald-400 font-bold">Verified</span>
+            <span className="flex items-center gap-2">🔍 <span>{t('aiContextInspector', 'AI Context Inspector')}</span></span>
+            <span className="text-[10px] text-emerald-400 font-bold">{t('verified', 'Verified')}</span>
           </button>
         </div>
       </div>
@@ -1781,20 +2123,20 @@ function renderCleanText(rawText) {
                 type="button"
                 onClick={() => setSidebarOpen(true)}
                 className="rounded-xl border border-slate-200 p-2 text-slate-600 hover:bg-slate-100 transition text-xs font-bold"
-                title="Expand sidebar"
+                title={t('sidebar', 'Expand sidebar')}
               >
-                ▶ Sidebar
+                ▶ {t('sidebar', 'Sidebar')}
               </button>
             )}
 
             <div>
               <div className="flex items-center gap-2">
-                <h3 className="font-extrabold text-slate-900 text-sm">{activeSession?.title || 'Speech Session'}</h3>
+                <h3 className="font-extrabold text-slate-900 text-sm">{activeSession?.title || (lang === 'ta' ? 'பேச்சு அமர்வு' : 'Speech Session')}</h3>
                 <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 text-[10px] font-bold text-emerald-800 border border-emerald-200">
-                  Grounded Context Active
+                  {t('groundedContextActive', 'Grounded Context Active')}
                 </span>
               </div>
-              <p className="text-[11px] text-slate-500">VOXTECH AI • Instant Speech Care Guidance</p>
+              <p className="text-[11px] text-slate-500">{lang === 'ta' ? 'VOXTECH AI • உடனடி பேச்சுப் பராமரிப்பு வழிகாட்டுதல்' : 'VOXTECH AI • Instant Speech Care Guidance'}</p>
             </div>
           </div>
 
@@ -1804,14 +2146,14 @@ function renderCleanText(rawText) {
               onClick={() => setDrawerOpen(drawerOpen === 'careplan' ? null : 'careplan')}
               className="hidden sm:flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50 transition shadow-sm"
             >
-              <span>📋 Care Plan</span>
+              <span>📋 {t('carePlanRoadmap', 'Care Plan')}</span>
             </button>
             <button
               type="button"
               onClick={() => setDrawerOpen(drawerOpen === 'reminders' ? null : 'reminders')}
               className="hidden sm:flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50 transition shadow-sm"
             >
-              <span>⏰ Reminders</span>
+              <span>⏰ {t('smartReminders', 'Reminders')}</span>
             </button>
           </div>
         </div>
@@ -1837,7 +2179,10 @@ function renderCleanText(rawText) {
               >
                 <div>
                   {msg.sender === 'user' ? (
-                    <p className="whitespace-pre-wrap">{msg.text}</p>
+                    <div className="space-y-2">
+                      {msg.audioUrl && <audio controls src={msg.audioUrl} className="max-w-full" />}
+                      <p className="whitespace-pre-wrap">{msg.text}</p>
+                    </div>
                   ) : (
                     renderCleanText(msg.text)
                   )}
@@ -1851,9 +2196,9 @@ function renderCleanText(rawText) {
                         type="button"
                         onClick={() => navigator.clipboard.writeText(msg.text.replace(/[*#]/g, ''))}
                         className="hover:text-slate-700 transition"
-                        title="Copy text"
+                        title={t('copy', 'Copy')}
                       >
-                        📋 Copy
+                        📋 {t('copy', 'Copy')}
                       </button>
 
                       <button
@@ -1866,7 +2211,7 @@ function renderCleanText(rawText) {
                         }`}
                       >
                         <span>🔊</span>
-                        <span>{playingId === msg.id ? 'Stop' : 'Listen Voice'}</span>
+                        <span>{playingId === msg.id ? (lang === 'ta' ? 'நிறுத்து' : 'Stop') : (lang === 'ta' ? 'குரலைக் கேளுங்கள்' : 'Listen Voice')}</span>
                       </button>
                     </div>
                   )}
@@ -1888,7 +2233,7 @@ function renderCleanText(rawText) {
               </div>
               <div className="rounded-[24px] bg-white border border-slate-200 p-5 text-xs text-slate-500 flex items-center gap-3 shadow-sm">
                 <span className="h-2.5 w-2.5 rounded-full bg-emerald-500 animate-ping" />
-                <span>VOXTECH AI is computing your live speech care response...</span>
+                <span>{t('computingResponse', 'VOXTECH AI is computing your live speech care response...')}</span>
               </div>
             </div>
           )}
@@ -1898,10 +2243,10 @@ function renderCleanText(rawText) {
 
         <div className="px-6 py-2 border-t border-slate-200/60 bg-white/70 backdrop-blur flex items-center gap-2 overflow-x-auto text-xs scrollbar-none">
           {[
-            { label: '📋 Active Goals & Doctor Appointments', query: 'What are my active goals and when is my next doctor consultation?' },
-            { label: '🎤 5-Min Fluency & Pacing Drill', query: 'Guide me step-by-step through a 5-minute fluency and continuous phonation drill.' },
-            { label: '⏰ Today\'s Smart Reminders', query: 'List all active reminders for today and recommend optimal practice times.' },
-            { label: '📈 Clinical Progress Review', query: 'Review my recent clinical notes and give tips to improve sound onset.' }
+            { label: lang === 'ta' ? '📋 இலக்குகள் & மருத்துவர் சந்திப்புகள்' : '📋 Active Goals & Doctor Appointments', query: lang === 'ta' ? 'எனது தற்போதைய இலக்குகள் என்ன மற்றும் அடுத்த மருத்துவர் சந்திப்பு எப்போது?' : 'What are my active goals and when is my next doctor consultation?' },
+            { label: lang === 'ta' ? '🎤 5 நிமிட பேச்சுப் பயிற்சி' : '🎤 5-Min Fluency & Pacing Drill', query: lang === 'ta' ? '5 நிமிட பேச்சு ஓட்டம் மற்றும் தொடர்ச்சியான ஒலிப்புப் பயிற்சியில் என்னை வழிநடத்துங்கள்.' : 'Guide me step-by-step through a 5-minute fluency and continuous phonation drill.' },
+            { label: lang === 'ta' ? '⏰ இன்றைய நினைவூட்டல்கள்' : '⏰ Today\'s Smart Reminders', query: lang === 'ta' ? 'இன்றைய அனைத்து நினைவூட்டல்களையும் பட்டியலிட்டு சிறந்த பயிற்சி நேரங்களைப் பரிந்துரைக்கவும்.' : 'List all active reminders for today and recommend optimal practice times.' },
+            { label: lang === 'ta' ? '📈 மருத்துவ முன்னேற்ற ஆய்வு' : '📈 Clinical Progress Review', query: lang === 'ta' ? 'எனது சமீபத்திய மருத்துவக் குறிப்புகளை மதிப்பாய்வு செய்து ஒலி தொடக்கத்தை மேம்படுத்துவதற்கான குறிப்புகளை வழங்கவும்.' : 'Review my recent clinical notes and give tips to improve sound onset.' }
           ].map((chip, idx) => (
             <button
               key={idx}
@@ -1928,7 +2273,7 @@ function renderCleanText(rawText) {
               className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl transition shadow-sm ${
                 isRecording ? 'bg-red-500 text-white animate-pulse' : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'
               }`}
-              title="Speak to Assistant"
+              title={lang === 'ta' ? 'உதவியாளரிடம் பேசவும்' : 'Speak to Assistant'}
             >
               🎤
             </button>
@@ -1937,7 +2282,7 @@ function renderCleanText(rawText) {
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder="Ask VOXTECH AI about care plans, reminders, or speech drills..."
+              placeholder={lang === 'ta' ? 'VOXTECH AI-யிடம் பராமரிப்பு, நினைவூட்டல் அல்லது பயிற்சிகள் பற்றிக் கேளுங்கள்...' : 'Ask VOXTECH AI about care plans, reminders, or speech drills...'}
               className="flex-1 bg-transparent px-2 text-xs sm:text-sm outline-none text-slate-800 placeholder-slate-400"
             />
 
@@ -1946,11 +2291,11 @@ function renderCleanText(rawText) {
               disabled={loading || !input.trim()}
               className="flex h-11 px-6 items-center justify-center rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-bold text-xs shadow-md shadow-emerald-600/20 transition hover:scale-102 active:scale-98 disabled:opacity-40"
             >
-              Send
+              {t('send', 'Send')}
             </button>
           </form>
           <p className="mt-2 text-center text-[10px] text-slate-400">
-            VOXTECH AI v3.5 • Grounded in live patient goals & clinical updates
+            {lang === 'ta' ? 'VOXTECH AI v3.5 • நேரடி நோயாளியின் இலக்குகள் & மருத்துவ புதுப்பிப்புகள் அடிப்படையில் இயங்குகிறது' : 'VOXTECH AI v3.5 • Grounded in live patient goals & clinical updates'}
           </p>
         </div>
 
@@ -1958,9 +2303,9 @@ function renderCleanText(rawText) {
           <div className="absolute inset-y-0 right-0 w-80 sm:w-96 bg-white border-l border-slate-200 shadow-2xl z-30 flex flex-col transition-all">
             <div className="flex items-center justify-between border-b border-slate-200 p-4 bg-slate-50">
               <h4 className="font-bold text-slate-900 text-sm">
-                {drawerOpen === 'careplan' && '📋 7-Day Care Plan Roadmap'}
-                {drawerOpen === 'reminders' && '⏰ Active Smart Reminders'}
-                {drawerOpen === 'context' && '🔍 Live AI Context Inspector'}
+                {drawerOpen === 'careplan' && `📋 ${lang === 'ta' ? '7-நாள் பராமரிப்புத் திட்ட வரைபடம்' : '7-Day Care Plan Roadmap'}`}
+                {drawerOpen === 'reminders' && `⏰ ${lang === 'ta' ? 'செயலில் உள்ள நினைவூட்டல்கள்' : 'Active Smart Reminders'}`}
+                {drawerOpen === 'context' && `🔍 ${lang === 'ta' ? 'நேரடி AI சூழல் ஆய்வாளர்' : 'Live AI Context Inspector'}`}
               </h4>
 
               <button
@@ -1968,7 +2313,7 @@ function renderCleanText(rawText) {
                 onClick={() => setDrawerOpen(null)}
                 className="text-slate-400 hover:text-slate-700 p-1 text-xs font-bold"
               >
-                ✕ Close
+                ✕ {t('close', 'Close')}
               </button>
             </div>
 
@@ -1976,14 +2321,14 @@ function renderCleanText(rawText) {
               {drawerOpen === 'careplan' && (
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
-                    <p className="text-xs text-slate-500">7-day roadmap tailored to active goals.</p>
+                    <p className="text-xs text-slate-500">{t('carePlanRoadmapDesc', '7-day roadmap tailored to active goals.')}</p>
                     <button
                       type="button"
                       onClick={handleGenerateCarePlan}
                       disabled={generatingPlan}
                       className="text-xs font-bold text-emerald-600 hover:underline disabled:opacity-50"
                     >
-                      {generatingPlan ? 'Generating...' : '✨ Refresh Plan'}
+                      {generatingPlan ? t('generatingPlan', 'Generating...') : t('refreshPlan', '✨ Refresh Plan')}
                     </button>
                   </div>
 
@@ -1992,15 +2337,15 @@ function renderCleanText(rawText) {
                       <div key={item.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-4 shadow-sm">
                         <div className="flex items-center justify-between">
                           <span className="rounded-lg bg-emerald-100 px-2 py-0.5 text-[10px] font-extrabold text-emerald-800">
-                            Day {item.day}
+                            {t('dayLabel', 'Day')} {item.day}
                           </span>
                           <span className="text-[10px] font-bold text-slate-600 bg-slate-200 px-2 py-0.5 rounded-full">
-                            {item.status}
+                            {t(item.status, item.status)}
                           </span>
                         </div>
                         <h5 className="mt-2 font-bold text-slate-900 text-xs">{item.title}</h5>
                         <p className="mt-1 text-[11px] text-slate-600">{item.detail}</p>
-                        <p className="mt-2 text-[10px] font-semibold text-emerald-700">⏱️ Target: {item.duration} mins</p>
+                        <p className="mt-2 text-[10px] font-semibold text-emerald-700">⏱️ {t('targetDuration', 'Target:')} {item.duration} {t('minsLabel', 'mins')}</p>
                       </div>
                     ))}
                   </div>
@@ -2039,12 +2384,12 @@ function renderCleanText(rawText) {
                   </div>
 
                   <form onSubmit={handleAddReminderSubmit} className="rounded-2xl border border-slate-200 bg-slate-50 p-4 space-y-3">
-                    <h5 className="font-bold text-slate-900 text-xs">➕ Add New Reminder</h5>
+                    <h5 className="font-bold text-slate-900 text-xs">➕ {t('addNewReminder', 'Add New Reminder')}</h5>
                     <input
                       type="text"
                       value={remTitle}
                       onChange={(e) => setRemTitle(e.target.value)}
-                      placeholder="Reminder title..."
+                      placeholder={t('reminderTitlePlaceholder', 'Reminder title...')}
                       className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs outline-none focus:border-emerald-500"
                     />
                     <div className="grid grid-cols-2 gap-2">
@@ -2052,7 +2397,7 @@ function renderCleanText(rawText) {
                         type="text"
                         value={remTime}
                         onChange={(e) => setRemTime(e.target.value)}
-                        placeholder="Time (e.g. 09:00 AM)"
+                        placeholder={t('timePlaceholder', 'Time (e.g. 09:00 AM)')}
                         className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs outline-none focus:border-emerald-500"
                       />
                       <select
@@ -2060,9 +2405,9 @@ function renderCleanText(rawText) {
                         onChange={(e) => setRemCat(e.target.value)}
                         className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs outline-none focus:border-emerald-500"
                       >
-                        <option>Speech</option>
-                        <option>Breathing</option>
-                        <option>Fluency</option>
+                        <option value="Speech">{lang === 'ta' ? 'பேச்சு' : 'Speech'}</option>
+                        <option value="Breathing">{lang === 'ta' ? 'மூச்சு' : 'Breathing'}</option>
+                        <option value="Fluency">{lang === 'ta' ? 'சரளம்' : 'Fluency'}</option>
                       </select>
                     </div>
                     <button
@@ -2113,6 +2458,7 @@ function renderCleanText(rawText) {
 }
 
 function GoalsPage({ role }) {
+  const { lang, t } = useTranslation()
   const [goals, setGoals] = useState([])
   const [filter, setFilter] = useState('All')
   const [showAddModal, setShowAddModal] = useState(false)
@@ -2213,9 +2559,9 @@ function GoalsPage({ role }) {
     <div className="space-y-6">
       <div className="flex flex-col gap-4 rounded-[28px] bg-gradient-to-r from-emerald-600 to-teal-700 p-6 text-white shadow-lg lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <span className="text-xs font-bold uppercase tracking-wider text-emerald-200">Therapy Milestones & Routine</span>
-          <h2 className="mt-1 text-3xl font-bold">Goals & Objectives</h2>
-          <p className="mt-1 text-xs text-emerald-100">Track and achieve daily breathing, articulation, and cognitive milestones.</p>
+          <span className="text-xs font-bold uppercase tracking-wider text-emerald-200">{lang === 'ta' ? 'சிகிச்சை மைல்கற்கள் & வழக்கம்' : 'Therapy Milestones & Routine'}</span>
+          <h2 className="mt-1 text-3xl font-bold">{t('goalsTitle', 'Goals & Objectives')}</h2>
+          <p className="mt-1 text-xs text-emerald-100">{t('goalsSubtitle', 'Track and achieve daily breathing, articulation, and cognitive milestones.')}</p>
         </div>
         <button
           type="button"
@@ -2223,7 +2569,7 @@ function GoalsPage({ role }) {
           className="flex items-center justify-center gap-2 rounded-2xl bg-white px-5 py-3 text-sm font-bold text-emerald-900 shadow-md transition hover:-translate-y-0.5 hover:bg-emerald-50"
         >
           <span>➕</span>
-          <span>Add Goal</span>
+          <span>{t('addGoal', 'Add Goal')}</span>
         </button>
       </div>
 
@@ -2231,8 +2577,8 @@ function GoalsPage({ role }) {
       <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-sm font-bold text-slate-900">Overall Progress</p>
-            <p className="text-xs text-slate-500">{completedCount} of {goals.length} targets completed</p>
+            <p className="text-sm font-bold text-slate-900">{t('overallProgress', 'Overall Progress')}</p>
+            <p className="text-xs text-slate-500">{goals.length} {t('targetsCompleted', 'targets completed')} ({completedCount} {t('completed', 'completed')})</p>
           </div>
           <span className="text-2xl font-bold text-emerald-600">{progressPct}%</span>
         </div>
@@ -2243,14 +2589,18 @@ function GoalsPage({ role }) {
 
       {/* Filter Tabs */}
       <div className="flex gap-2 border-b pb-3">
-        {['All', 'Active', 'Completed'].map((t) => (
+        {[
+          ['All', t('allGoals', 'All Goals')],
+          ['Active', t('activeGoals', 'Active Goals')],
+          ['Completed', t('completedGoals', 'Completed Goals')],
+        ].map(([filterKey, filterLabel]) => (
           <button
-            key={t}
+            key={filterKey}
             type="button"
-            onClick={() => setFilter(t)}
-            className={`rounded-xl px-4 py-2 text-xs font-bold transition ${filter === t ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+            onClick={() => setFilter(filterKey)}
+            className={`rounded-xl px-4 py-2 text-xs font-bold transition ${filter === filterKey ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
           >
-            {t} Goals
+            {filterLabel}
           </button>
         ))}
       </div>
@@ -2269,10 +2619,10 @@ function GoalsPage({ role }) {
               </button>
               <div>
                 <div className="flex items-center gap-2">
-                  <h4 className={`font-bold text-slate-900 ${goal.done ? 'line-through text-slate-400' : ''}`}>{goal.title}</h4>
-                  <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[9px] font-bold text-emerald-800">{goal.category}</span>
+                  <h4 className={`font-bold text-slate-900 ${goal.done ? 'line-through text-slate-400' : ''}`}>{t(goal.title, goal.title)}</h4>
+                  <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[9px] font-bold text-emerald-800">{t(goal.category, goal.category)}</span>
                 </div>
-                <p className="text-xs text-slate-500">{goal.detail}</p>
+                <p className="text-xs text-slate-500">{t(goal.detail, goal.detail)}</p>
               </div>
             </div>
 
@@ -2281,7 +2631,7 @@ function GoalsPage({ role }) {
               onClick={() => handleDelete(goal.id)}
               className="rounded-xl px-3 py-1.5 text-xs text-rose-500 hover:bg-rose-50 font-bold"
             >
-              🗑️ Delete
+              🗑️ {t('deleteBtn', 'Delete')}
             </button>
           </div>
         ))}
@@ -2292,13 +2642,13 @@ function GoalsPage({ role }) {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm">
           <div className="w-full max-w-md rounded-3xl border border-emerald-100 bg-white p-6 shadow-2xl">
             <div className="flex items-center justify-between border-b pb-4">
-              <h3 className="text-lg font-bold text-slate-900">Add New Therapy Goal</h3>
+              <h3 className="text-lg font-bold text-slate-900">{t('addNewGoalModal', 'Add New Therapy Goal')}</h3>
               <button type="button" onClick={() => setShowAddModal(false)} className="rounded-full bg-slate-100 p-1.5 text-xs text-slate-600">✕</button>
             </div>
 
             <form onSubmit={handleAddSubmit} className="mt-4 space-y-4">
               <div>
-                <label className="block text-xs font-bold uppercase text-slate-600">Goal Title</label>
+                <label className="block text-xs font-bold uppercase text-slate-600">{t('goalTitle', 'Goal Title')}</label>
                 <input
                   type="text"
                   value={newTitle}
@@ -2310,21 +2660,21 @@ function GoalsPage({ role }) {
               </div>
 
               <div>
-                <label className="block text-xs font-bold uppercase text-slate-600">Category</label>
+                <label className="block text-xs font-bold uppercase text-slate-600">{t('category', 'Category')}</label>
                 <select
                   value={newCategory}
                   onChange={(e) => setNewCategory(e.target.value)}
                   className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-emerald-500"
                 >
-                  <option value="Speech">Speech & Articulation</option>
-                  <option value="Breathing">Rhythmic Breathing</option>
-                  <option value="Fluency">Fluency & Pacing</option>
-                  <option value="Cognitive">Cognitive Drill</option>
+                  <option value="Speech">{t('Speech & Articulation', 'Speech & Articulation')}</option>
+                  <option value="Breathing">{t('Rhythmic Breathing', 'Rhythmic Breathing')}</option>
+                  <option value="Fluency">{t('Fluency & Pacing', 'Fluency & Pacing')}</option>
+                  <option value="Cognitive">{t('Cognitive Drill', 'Cognitive Drill')}</option>
                 </select>
               </div>
 
               <div>
-                <label className="block text-xs font-bold uppercase text-slate-600">Details / Instructions</label>
+                <label className="block text-xs font-bold uppercase text-slate-600">{t('detailsInstructions', 'Details / Instructions')}</label>
                 <textarea
                   value={newDetail}
                   onChange={(e) => setNewDetail(e.target.value)}
@@ -2335,8 +2685,8 @@ function GoalsPage({ role }) {
               </div>
 
               <div className="flex justify-end gap-2 pt-2">
-                <button type="button" onClick={() => setShowAddModal(false)} className="rounded-xl px-4 py-2 text-xs font-semibold text-slate-600">Cancel</button>
-                <button type="submit" className="rounded-xl bg-emerald-600 px-5 py-2 text-xs font-bold text-white shadow-md shadow-emerald-600/20">Save Goal</button>
+                <button type="button" onClick={() => setShowAddModal(false)} className="rounded-xl px-4 py-2 text-xs font-semibold text-slate-600">{t('cancel', 'Cancel')}</button>
+                <button type="submit" className="rounded-xl bg-emerald-600 px-5 py-2 text-xs font-bold text-white shadow-md shadow-emerald-600/20">{t('saveGoal', 'Save Goal')}</button>
               </div>
             </form>
           </div>
@@ -2347,6 +2697,7 @@ function GoalsPage({ role }) {
 }
 
 function UpdatesPage({ role }) {
+  const { lang, t } = useTranslation()
   const [updates, setUpdates] = useState([])
   const [showAddModal, setShowAddModal] = useState(false)
   const [title, setTitle] = useState('')
@@ -2419,9 +2770,9 @@ function UpdatesPage({ role }) {
     <div className="space-y-6">
       <div className="flex flex-col gap-4 rounded-[28px] bg-gradient-to-r from-teal-600 to-emerald-700 p-6 text-white shadow-lg lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <span className="text-xs font-bold uppercase tracking-wider text-teal-200">Clinical Progress Timeline</span>
-          <h2 className="mt-1 text-3xl font-bold">Therapy Updates & Notes</h2>
-          <p className="mt-1 text-xs text-teal-100">Review clinical milestones, therapist notes, and care team logs.</p>
+          <span className="text-xs font-bold uppercase tracking-wider text-teal-200">{lang === 'ta' ? 'மருத்துவ முன்னேற்ற காலக்கோடு' : 'Clinical Progress Timeline'}</span>
+          <h2 className="mt-1 text-3xl font-bold">{t('updatesTitle', 'Therapy Updates & Notes')}</h2>
+          <p className="mt-1 text-xs text-teal-100">{t('updatesSubtitle', 'Review clinical milestones, therapist notes, and care team logs.')}</p>
         </div>
         <button
           type="button"
@@ -2429,7 +2780,7 @@ function UpdatesPage({ role }) {
           className="flex items-center justify-center gap-2 rounded-2xl bg-white px-5 py-3 text-sm font-bold text-teal-900 shadow-md transition hover:-translate-y-0.5 hover:bg-teal-50"
         >
           <span>✍️</span>
-          <span>Log Update</span>
+          <span>{t('logUpdate', 'Log Update')}</span>
         </button>
       </div>
 
@@ -2439,11 +2790,11 @@ function UpdatesPage({ role }) {
             <div className="flex items-start justify-between">
               <div>
                 <div className="flex items-center gap-2">
-                  <span className="rounded-full bg-teal-100 px-2.5 py-0.5 text-[10px] font-bold text-teal-800">{item.category}</span>
+                  <span className="rounded-full bg-teal-100 px-2.5 py-0.5 text-[10px] font-bold text-teal-800">{t(item.category, item.category)}</span>
                   <span className="text-xs text-slate-400">• {new Date(item.createdAt).toLocaleDateString()}</span>
                 </div>
-                <h3 className="mt-2 text-lg font-bold text-slate-900">{item.title}</h3>
-                <p className="mt-1 text-xs font-semibold text-emerald-700">Author: {item.author}</p>
+                <h3 className="mt-2 text-lg font-bold text-slate-900">{t(item.title, item.title)}</h3>
+                <p className="mt-1 text-xs font-semibold text-emerald-700">{t('author', 'Author')}: {t(item.author, item.author)}</p>
               </div>
 
               <button
@@ -2455,7 +2806,7 @@ function UpdatesPage({ role }) {
               </button>
             </div>
 
-            <p className="mt-3 text-sm leading-relaxed text-slate-600 bg-slate-50 p-4 rounded-xl">{item.content}</p>
+            <p className="mt-3 text-sm leading-relaxed text-slate-600 bg-slate-50 p-4 rounded-xl">{t(item.content, item.content)}</p>
           </div>
         ))}
       </div>
@@ -2464,13 +2815,13 @@ function UpdatesPage({ role }) {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm">
           <div className="w-full max-w-md rounded-3xl border border-emerald-100 bg-white p-6 shadow-2xl">
             <div className="flex items-center justify-between border-b pb-4">
-              <h3 className="text-lg font-bold text-slate-900">Log Clinical Update</h3>
+              <h3 className="text-lg font-bold text-slate-900">{t('logClinicalUpdateModal', 'Log Clinical Update')}</h3>
               <button type="button" onClick={() => setShowAddModal(false)} className="rounded-full bg-slate-100 p-1.5 text-xs text-slate-600">✕</button>
             </div>
 
             <form onSubmit={handleAddUpdate} className="mt-4 space-y-4">
               <div>
-                <label className="block text-xs font-bold uppercase text-slate-600">Title</label>
+                <label className="block text-xs font-bold uppercase text-slate-600">{t('goalTitle', 'Title')}</label>
                 <input
                   type="text"
                   value={title}
@@ -2482,21 +2833,21 @@ function UpdatesPage({ role }) {
               </div>
 
               <div>
-                <label className="block text-xs font-bold uppercase text-slate-600">Category</label>
+                <label className="block text-xs font-bold uppercase text-slate-600">{t('category', 'Category')}</label>
                 <select
                   value={category}
                   onChange={(e) => setCategory(e.target.value)}
                   className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-emerald-500"
                 >
-                  <option value="Clinical Note">Clinical Note</option>
-                  <option value="Milestone">Milestone Achieved</option>
-                  <option value="Therapist Feedback">Therapist Feedback</option>
-                  <option value="Family Observation">Family Observation</option>
+                  <option value="Clinical Note">{t('Clinical Note', 'Clinical Note')}</option>
+                  <option value="Milestone">{t('Milestone Achieved', 'Milestone Achieved')}</option>
+                  <option value="Therapist Feedback">{t('Therapist Feedback', 'Therapist Feedback')}</option>
+                  <option value="Family Observation">{t('Family Observation', 'Family Observation')}</option>
                 </select>
               </div>
 
               <div>
-                <label className="block text-xs font-bold uppercase text-slate-600">Content / Summary</label>
+                <label className="block text-xs font-bold uppercase text-slate-600">{t('detailsInstructions', 'Content / Summary')}</label>
                 <textarea
                   value={content}
                   onChange={(e) => setContent(e.target.value)}
@@ -2508,8 +2859,8 @@ function UpdatesPage({ role }) {
               </div>
 
               <div className="flex justify-end gap-2 pt-2">
-                <button type="button" onClick={() => setShowAddModal(false)} className="rounded-xl px-4 py-2 text-xs font-semibold text-slate-600">Cancel</button>
-                <button type="submit" className="rounded-xl bg-teal-600 px-5 py-2 text-xs font-bold text-white shadow-md shadow-teal-600/20">Post Update</button>
+                <button type="button" onClick={() => setShowAddModal(false)} className="rounded-xl px-4 py-2 text-xs font-semibold text-slate-600">{t('cancel', 'Cancel')}</button>
+                <button type="submit" className="rounded-xl bg-teal-600 px-5 py-2 text-xs font-bold text-white shadow-md shadow-teal-600/20">{t('postUpdate', 'Post Update')}</button>
               </div>
             </form>
           </div>
@@ -2520,15 +2871,43 @@ function UpdatesPage({ role }) {
 }
 
 function TherapyPage({ role }) {
+  const { lang, t } = useTranslation()
   const [activePlan, setActivePlan] = useState(null)
   const [step, setStep] = useState(0)
   const [isPlayingAudio, setIsPlayingAudio] = useState(false)
   const [completedMessage, setCompletedMessage] = useState('')
 
   const plans = [
-    { id: 'plan-1', name: 'Rhythmic Breathing & Pitch Stability', duration: '15 mins', level: 'Beginner', icon: '🫁', steps: ['Inhale deeply for 4 counts', 'Hold for 2 counts', 'Exhale slowly while humming "mmmm" sound'] },
-    { id: 'plan-2', name: 'Vowel Sound Onset & Articulation', duration: '20 mins', level: 'Intermediate', icon: '🗣️', steps: ['Repeat "AH - OH - EE" slowly', 'Focus on soft vocal attack', 'Practice target word "SPEECH" 5 times'] },
-    { id: 'plan-3', name: 'Sentence Pacing & Fluency Stretch', duration: '25 mins', level: 'Advanced', icon: '💬', steps: ['Take 2-second pause before speaking', 'Stretch first syllable of each phrase', 'Read paragraph with steady cadence'] },
+    {
+      id: 'plan-1',
+      name: t('Rhythmic Breathing & Pitch Stability', 'Rhythmic Breathing & Pitch Stability'),
+      duration: lang === 'ta' ? '15 நிமிடங்கள்' : '15 mins',
+      level: t('Beginner', 'Beginner'),
+      icon: '🫁',
+      steps: lang === 'ta'
+        ? ['4 எண்ணிக்கைகளுக்கு ஆழமாக மூச்சை உள்ளிழுக்கவும்', '2 எண்ணிக்கைகளுக்கு அடக்கி வைக்கவும்', '"ம்ம்ம்" ஒலி எழுப்பியவாறு மெதுவாக மூச்சை வெளிவிடவும்']
+        : ['Inhale deeply for 4 counts', 'Hold for 2 counts', 'Exhale slowly while humming "mmmm" sound'],
+    },
+    {
+      id: 'plan-2',
+      name: t('Vowel Sound Onset & Articulation', 'Vowel Sound Onset & Articulation'),
+      duration: lang === 'ta' ? '20 நிமிடங்கள்' : '20 mins',
+      level: t('Intermediate', 'Intermediate'),
+      icon: '🗣️',
+      steps: lang === 'ta'
+        ? ['"ஆ - ஓ - ஈ" என்பதை மெதுவாக மீண்டும் செய்யவும்', 'மென்மையான குரல் ஒலிப்பில் கவனம் செலுத்துங்கள்', '"SPEECH" என்ற வார்த்தையை 5 முறை பயிற்சி செய்யுங்கள்']
+        : ['Repeat "AH - OH - EE" slowly', 'Focus on soft vocal attack', 'Practice target word "SPEECH" 5 times'],
+    },
+    {
+      id: 'plan-3',
+      name: t('Sentence Pacing & Fluency Stretch', 'Sentence Pacing & Fluency Stretch'),
+      duration: lang === 'ta' ? '25 நிமிடங்கள்' : '25 mins',
+      level: t('Advanced', 'Advanced'),
+      icon: '💬',
+      steps: lang === 'ta'
+        ? ['பேசுவதற்கு முன் 2 வினாடிகள் இடைநிறுத்தம் செய்யுங்கள்', 'ஒவ்வொரு சொற்றொடரின் முதல் எழுத்தை நீட்டிப் பேசுங்கள்', 'சீரான வேகத்தில் பத்தியை வாசிக்கவும்']
+        : ['Take 2-second pause before speaking', 'Stretch first syllable of each phrase', 'Read paragraph with steady cadence'],
+    },
   ]
 
   const handleStartRunner = (plan) => {
@@ -2547,7 +2926,7 @@ function TherapyPage({ role }) {
           'Content-Type': 'application/json',
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
-        body: JSON.stringify({ text, targetLanguage: 'en-IN' }),
+        body: JSON.stringify({ text, targetLanguage: lang === 'ta' ? 'ta-IN' : 'en-IN' }),
       })
       if (res.ok) {
         const audioUrl = URL.createObjectURL(await res.blob())
@@ -2569,7 +2948,7 @@ function TherapyPage({ role }) {
     if (step < activePlan.steps.length - 1) {
       setStep(step + 1)
     } else {
-      setCompletedMessage('🎉 Excellent session! Therapy practice recorded.')
+      setCompletedMessage(lang === 'ta' ? '🎉 அற்புதம்! சிகிச்சை பயிற்சி பதிவு செய்யப்பட்டது.' : '🎉 Excellent session! Therapy practice recorded.')
       try {
         const token = window.localStorage.getItem('voxtech-token')
         await fetch('/api/therapy/session', {
@@ -2590,9 +2969,9 @@ function TherapyPage({ role }) {
     <div className="space-y-6">
       <div className="flex flex-col gap-4 rounded-[28px] bg-gradient-to-r from-violet-600 via-emerald-600 to-teal-700 p-6 text-white shadow-lg lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <span className="text-xs font-bold uppercase tracking-wider text-violet-200">Guided Recovery Plans</span>
-          <h2 className="mt-1 text-3xl font-bold">Therapy & Exercise Runner</h2>
-          <p className="mt-1 text-xs text-violet-100">Interactive speech, articulation, and breathing drills with Sarvam AI audio prompts.</p>
+          <span className="text-xs font-bold uppercase tracking-wider text-violet-200">{t('guidedRecoveryPlans', 'Guided Recovery Plans')}</span>
+          <h2 className="mt-1 text-3xl font-bold">{t('therapyRunnerTitle', 'Therapy & Exercise Runner')}</h2>
+          <p className="mt-1 text-xs text-violet-100">{t('therapyRunnerDesc', 'Interactive speech, articulation, and breathing drills with Sarvam AI audio prompts.')}</p>
         </div>
       </div>
 
@@ -2613,7 +2992,7 @@ function TherapyPage({ role }) {
               onClick={() => handleStartRunner(p)}
               className="mt-4 w-full rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 px-4 py-2.5 text-xs font-bold text-white shadow-md shadow-emerald-500/20 transition hover:-translate-y-0.5"
             >
-              Start Guided Drill
+              {t('startGuidedDrill', 'Start Guided Drill')}
             </button>
           </div>
         ))}
@@ -2626,7 +3005,7 @@ function TherapyPage({ role }) {
             <div className="flex items-center justify-between border-b border-slate-800 pb-4">
               <div>
                 <h3 className="text-lg font-bold text-white">{activePlan.name}</h3>
-                <p className="text-xs text-emerald-400">Step {step + 1} of {activePlan.steps.length}</p>
+                <p className="text-xs text-emerald-400">{lang === 'ta' ? `படி ${step + 1} / ${activePlan.steps.length}` : `Step ${step + 1} of ${activePlan.steps.length}`}</p>
               </div>
               <button type="button" onClick={() => setActivePlan(null)} className="rounded-full bg-slate-800 p-2 text-xs text-slate-400">✕</button>
             </div>
@@ -2640,13 +3019,13 @@ function TherapyPage({ role }) {
                   onClick={() => setActivePlan(null)}
                   className="rounded-xl bg-emerald-500 px-6 py-2.5 font-bold text-slate-950"
                 >
-                  Done
+                  {t('done', 'Done')}
                 </button>
               </div>
             ) : (
               <div className="my-6 space-y-6">
                 <div className="rounded-2xl border border-slate-800 bg-slate-800/60 p-6 text-center">
-                  <p className="text-xs font-bold uppercase tracking-wider text-emerald-400">Instructions</p>
+                  <p className="text-xs font-bold uppercase tracking-wider text-emerald-400">{t('instructions', 'Instructions')}</p>
                   <p className="mt-3 text-xl font-bold text-white">{activePlan.steps[step]}</p>
                 </div>
 
@@ -2658,7 +3037,7 @@ function TherapyPage({ role }) {
                     className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-slate-800 border border-slate-700 px-4 py-3 text-xs font-bold text-emerald-300 hover:bg-slate-700"
                   >
                     <span>🔊</span>
-                    <span>{isPlayingAudio ? 'Playing Prompt...' : 'Listen to Voice Prompt'}</span>
+                    <span>{isPlayingAudio ? t('playingPrompt', 'Playing Prompt...') : t('listenVoicePrompt', 'Listen to Voice Prompt')}</span>
                   </button>
 
                   <button
@@ -2666,7 +3045,7 @@ function TherapyPage({ role }) {
                     onClick={handleNextStep}
                     className="flex-1 rounded-xl bg-gradient-to-r from-emerald-400 to-teal-500 px-4 py-3 text-xs font-bold text-slate-950 shadow-lg"
                   >
-                    {step < activePlan.steps.length - 1 ? 'Next Step ➔' : 'Complete Drill 🎉'}
+                    {step < activePlan.steps.length - 1 ? t('nextStep', 'Next Step ➔') : t('completeDrill', 'Complete Drill 🎉')}
                   </button>
                 </div>
               </div>
@@ -2679,161 +3058,11 @@ function TherapyPage({ role }) {
 }
 
 function GamesPage({ role }) {
-  const [activeGame, setActiveGame] = useState(null)
-  const [score, setScore] = useState(0)
-  const [scoresList, setScoresList] = useState([])
-  const [wordInput, setWordInput] = useState('')
-  const [targetWord] = useState('SPEECH')
-
-  useEffect(() => {
-    async function fetchScores() {
-      try {
-        const token = window.localStorage.getItem('voxtech-token')
-        const res = await fetch('/api/games/scores', {
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
-        })
-        if (res.ok) {
-          const data = await res.json()
-          if (data.scores) setScoresList(data.scores)
-        }
-      } catch (err) {
-        console.warn('Game scores fetch fallback:', err)
-      }
-    }
-    fetchScores()
-  }, [])
-
-  const submitGameScore = async (gameName, finalScore) => {
-    try {
-      const token = window.localStorage.getItem('voxtech-token')
-      await fetch('/api/games/scores', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify({ gameName, score: finalScore }),
-      })
-      setScoresList([{ id: Date.now(), user: role || 'Player', gameName, score: finalScore, createdAt: new Date().toISOString() }, ...scoresList])
-    } catch (err) {
-      console.error('Score submit error:', err)
-    }
-  }
-
-  const handleWordAddLetter = (letter) => {
-    const updated = wordInput + letter
-    setWordInput(updated)
-    if (updated.toUpperCase() === targetWord) {
-      const newScore = score + 50
-      setScore(newScore)
-      submitGameScore('Word Builder', newScore)
-    }
-  }
-
-  return (
-    <div className="space-y-6">
-      <div className="flex flex-col gap-4 rounded-[28px] bg-gradient-to-r from-amber-500 via-orange-600 to-rose-600 p-6 text-white shadow-lg lg:flex-row lg:items-center lg:justify-between">
-        <div>
-          <span className="text-xs font-bold uppercase tracking-wider text-amber-200">Interactive Cognitive Training</span>
-          <h2 className="mt-1 text-3xl font-bold">Therapeutic Speech Games</h2>
-          <p className="mt-1 text-xs text-amber-100">Playful articulation, sound matching, and pacing drills to boost confidence.</p>
-        </div>
-      </div>
-
-      <div className="grid gap-4 md:grid-cols-3">
-        {[
-          { id: 'game-1', name: 'Word Builder Challenge', icon: '🔤', type: 'Articulation', detail: 'Build target words letter by letter to earn points.' },
-          { id: 'game-2', name: 'Pitch & Sound Matcher', icon: '🎵', type: 'Pitch Control', detail: 'Match vowel pitch frequencies with audio feedback.' },
-          { id: 'game-3', name: 'Sentence Pacing Sprint', icon: '⏱️', type: 'Cadence', detail: 'Practice steady 4-count sentence pacing.' },
-        ].map((game) => (
-          <div key={game.id} className="flex flex-col justify-between rounded-2xl border border-slate-100 bg-white p-5 shadow-sm transition hover:shadow-md">
-            <div>
-              <span className="text-4xl">{game.icon}</span>
-              <h3 className="mt-2 font-bold text-slate-900">{game.name}</h3>
-              <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-[10px] font-bold text-amber-800">{game.type}</span>
-              <p className="mt-2 text-xs text-slate-500">{game.detail}</p>
-            </div>
-            <button
-              type="button"
-              onClick={() => {
-                setActiveGame(game)
-                setScore(0)
-                setWordInput('')
-              }}
-              className="mt-4 w-full rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 px-4 py-2.5 text-xs font-bold text-white shadow-md shadow-amber-500/20 transition hover:-translate-y-0.5"
-            >
-              Play Game 🎮
-            </button>
-          </div>
-        ))}
-      </div>
-
-      {/* Leaderboard */}
-      <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
-        <h3 className="font-bold text-slate-900">Recent High Scores</h3>
-        <div className="mt-3 space-y-2">
-          {scoresList.slice(0, 5).map((s, idx) => (
-            <div key={s.id || idx} className="flex items-center justify-between rounded-xl bg-slate-50 p-3 text-xs">
-              <div className="flex items-center gap-2">
-                <span className="font-bold text-slate-400">#{idx + 1}</span>
-                <span className="font-semibold text-slate-800">{s.user}</span>
-                <span className="text-slate-500">• {s.gameName}</span>
-              </div>
-              <span className="font-bold text-emerald-600">{s.score} pts</span>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Active Game Modal */}
-      {activeGame && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/70 p-4 backdrop-blur-md">
-          <div className="w-full max-w-md rounded-3xl border border-amber-500/30 bg-white p-6 shadow-2xl">
-            <div className="flex items-center justify-between border-b pb-4">
-              <h3 className="text-lg font-bold text-slate-900">{activeGame.name}</h3>
-              <button type="button" onClick={() => setActiveGame(null)} className="rounded-full bg-slate-100 p-1.5 text-xs text-slate-600">✕</button>
-            </div>
-
-            <div className="my-6 space-y-4 text-center">
-              <p className="text-xs font-bold uppercase text-amber-600">Current Score: {score} pts</p>
-
-              <div className="rounded-2xl bg-amber-50 p-6">
-                <p className="text-xs text-slate-500 mb-2">Build target word: <span className="font-bold text-slate-900">SPEECH</span></p>
-                <div className="text-2xl font-bold tracking-widest text-emerald-700 min-h-[40px] flex items-center justify-center">
-                  {wordInput || 'TAP LETTERS BELOW'}
-                </div>
-              </div>
-
-              <div className="flex justify-center gap-2 flex-wrap">
-                {['S', 'P', 'E', 'E', 'C', 'H'].map((charItem, i) => (
-                  <button
-                    key={i}
-                    type="button"
-                    onClick={() => handleWordAddLetter(charItem)}
-                    className="rounded-xl bg-slate-900 px-4 py-3 font-bold text-white shadow-md hover:bg-slate-800"
-                  >
-                    {charItem}
-                  </button>
-                ))}
-              </div>
-
-              {wordInput.toUpperCase() === targetWord && (
-                <p className="text-sm font-bold text-emerald-600 animate-bounce">🎉 Perfect! Score recorded!</p>
-              )}
-            </div>
-
-            <div className="flex justify-end gap-2 border-t pt-3">
-              <button type="button" onClick={() => setWordInput('')} className="rounded-xl px-4 py-2 text-xs font-semibold text-slate-600">Reset</button>
-              <button type="button" onClick={() => setActiveGame(null)} className="rounded-xl bg-amber-600 px-5 py-2 text-xs font-bold text-white">Close Game</button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  )
+  return <GamesHub role={role} />
 }
 
 function CommunityPage({ role }) {
+  const { lang, t } = useTranslation()
   const [posts, setPosts] = useState([])
   const [showAddModal, setShowAddModal] = useState(false)
   const [title, setTitle] = useState('')
@@ -2903,13 +3132,20 @@ function CommunityPage({ role }) {
     }
   }
 
+  const categoryMapTa = {
+    'Tips & Tricks': 'குறிப்புகள் & நுட்பங்கள்',
+    'Caregiver Circle': 'பராமரிப்பாளர் வட்டம்',
+    'Progress Story': 'முன்னேற்றக் கதை',
+    'General Discussion': 'பொதுக் கலந்துரையாடல்',
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 rounded-[28px] bg-gradient-to-r from-sky-600 to-indigo-700 p-6 text-white shadow-lg lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <span className="text-xs font-bold uppercase tracking-wider text-sky-200">Support Circles & Peer Forums</span>
-          <h2 className="mt-1 text-3xl font-bold">Care Community</h2>
-          <p className="mt-1 text-xs text-sky-100">Share tips, encouragement, and daily speech progress with peers & caregivers.</p>
+          <span className="text-xs font-bold uppercase tracking-wider text-sky-200">{t('communityKicker', 'Support Circles & Peer Forums')}</span>
+          <h2 className="mt-1 text-3xl font-bold">{t('communityTitle', 'Care Community')}</h2>
+          <p className="mt-1 text-xs text-sky-100">{t('communityDesc', 'Share tips, encouragement, and daily speech progress with peers & caregivers.')}</p>
         </div>
         <button
           type="button"
@@ -2917,7 +3153,7 @@ function CommunityPage({ role }) {
           className="flex items-center justify-center gap-2 rounded-2xl bg-white px-5 py-3 text-sm font-bold text-indigo-900 shadow-md transition hover:-translate-y-0.5 hover:bg-sky-50"
         >
           <span>💬</span>
-          <span>New Discussion</span>
+          <span>{t('newDiscussion', 'New Discussion')}</span>
         </button>
       </div>
 
@@ -2926,10 +3162,12 @@ function CommunityPage({ role }) {
           <div key={post.id} className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm transition hover:shadow-md">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <span className="rounded-full bg-sky-100 px-2.5 py-0.5 text-[10px] font-bold text-sky-800">{post.category}</span>
+                <span className="rounded-full bg-sky-100 px-2.5 py-0.5 text-[10px] font-bold text-sky-800">
+                  {lang === 'ta' ? (categoryMapTa[post.category] || post.category) : post.category}
+                </span>
                 <span className="text-xs text-slate-400">• {new Date(post.createdAt).toLocaleDateString()}</span>
               </div>
-              <span className="text-xs font-semibold text-slate-500">By {post.author}</span>
+              <span className="text-xs font-semibold text-slate-500">{t('byAuthor', 'By')} {post.author}</span>
             </div>
 
             <h3 className="mt-2 text-lg font-bold text-slate-900">{post.title}</h3>
@@ -2942,7 +3180,7 @@ function CommunityPage({ role }) {
                 className="flex items-center gap-1.5 rounded-xl bg-slate-100 px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-sky-50 hover:text-sky-600"
               >
                 <span>❤️</span>
-                <span>{post.likes || 0} Likes</span>
+                <span>{post.likes || 0} {t('likesLabel', 'Likes')}</span>
               </button>
             </div>
           </div>
@@ -2953,43 +3191,43 @@ function CommunityPage({ role }) {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm">
           <div className="w-full max-w-md rounded-3xl border border-sky-100 bg-white p-6 shadow-2xl">
             <div className="flex items-center justify-between border-b pb-4">
-              <h3 className="text-lg font-bold text-slate-900">Start Discussion</h3>
+              <h3 className="text-lg font-bold text-slate-900">{t('startDiscussion', 'Start Discussion')}</h3>
               <button type="button" onClick={() => setShowAddModal(false)} className="rounded-full bg-slate-100 p-1.5 text-xs text-slate-600">✕</button>
             </div>
 
             <form onSubmit={handleAddPost} className="mt-4 space-y-4">
               <div>
-                <label className="block text-xs font-bold uppercase text-slate-600">Topic Title</label>
+                <label className="block text-xs font-bold uppercase text-slate-600">{t('topicTitle', 'Topic Title')}</label>
                 <input
                   type="text"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
-                  placeholder="e.g. Tips for morning breathing drills"
+                  placeholder={t('topicPlaceholder', 'e.g. Tips for morning breathing drills')}
                   className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-sky-500"
                   required
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold uppercase text-slate-600">Category</label>
+                <label className="block text-xs font-bold uppercase text-slate-600">{t('category', 'Category')}</label>
                 <select
                   value={category}
                   onChange={(e) => setCategory(e.target.value)}
                   className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-sky-500"
                 >
-                  <option value="Tips & Tricks">Tips & Tricks</option>
-                  <option value="Caregiver Circle">Caregiver Circle</option>
-                  <option value="Progress Story">Progress Story</option>
-                  <option value="General Discussion">General Discussion</option>
+                  <option value="Tips & Tricks">{lang === 'ta' ? 'குறிப்புகள் & நுட்பங்கள்' : 'Tips & Tricks'}</option>
+                  <option value="Caregiver Circle">{lang === 'ta' ? 'பராமரிப்பாளர் வட்டம்' : 'Caregiver Circle'}</option>
+                  <option value="Progress Story">{lang === 'ta' ? 'முன்னேற்றக் கதை' : 'Progress Story'}</option>
+                  <option value="General Discussion">{lang === 'ta' ? 'பொதுக் கலந்துரையாடல்' : 'General Discussion'}</option>
                 </select>
               </div>
 
               <div>
-                <label className="block text-xs font-bold uppercase text-slate-600">Message Content</label>
+                <label className="block text-xs font-bold uppercase text-slate-600">{t('messageContent', 'Message Content')}</label>
                 <textarea
                   value={content}
                   onChange={(e) => setContent(e.target.value)}
-                  placeholder="Share your thoughts with the community..."
+                  placeholder={t('shareThoughtsPlaceholder', 'Share your thoughts with the community...')}
                   className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-sky-500"
                   rows={4}
                   required
@@ -2997,8 +3235,8 @@ function CommunityPage({ role }) {
               </div>
 
               <div className="flex justify-end gap-2 pt-2">
-                <button type="button" onClick={() => setShowAddModal(false)} className="rounded-xl px-4 py-2 text-xs font-semibold text-slate-600">Cancel</button>
-                <button type="submit" className="rounded-xl bg-sky-600 px-5 py-2 text-xs font-bold text-white shadow-md shadow-sky-600/20">Publish Post</button>
+                <button type="button" onClick={() => setShowAddModal(false)} className="rounded-xl px-4 py-2 text-xs font-semibold text-slate-600">{t('cancel', 'Cancel')}</button>
+                <button type="submit" className="rounded-xl bg-sky-600 px-5 py-2 text-xs font-bold text-white shadow-md shadow-sky-600/20">{t('publishPost', 'Publish Post')}</button>
               </div>
             </form>
           </div>
@@ -3009,6 +3247,7 @@ function CommunityPage({ role }) {
 }
 
 function AnalyticsPage({ role }) {
+  const { lang, t } = useTranslation()
   const [data, setData] = useState({
     fluencyScore: 88,
     weeklySessionsCompleted: 14,
@@ -3042,13 +3281,15 @@ function AnalyticsPage({ role }) {
     fetchAnalytics()
   }, [])
 
+  const dayMapTa = { Mon: 'திங்கள்', Tue: 'செவ்வாய்', Wed: 'புதன்', Thu: 'வியாழன்', Fri: 'வெள்ளி', Sat: 'சனி', Sun: 'ஞாயிறு' }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 rounded-[28px] bg-gradient-to-r from-emerald-600 via-teal-700 to-cyan-800 p-6 text-white shadow-lg lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <span className="text-xs font-bold uppercase tracking-wider text-emerald-200">Outcome Metrics & Reporting</span>
-          <h2 className="mt-1 text-3xl font-bold">Therapy Analytics</h2>
-          <p className="mt-1 text-xs text-emerald-100">Review weekly speech fluency, practice duration, and progress trends.</p>
+          <span className="text-xs font-bold uppercase tracking-wider text-emerald-200">{lang === 'ta' ? 'முடிவு அளவீடுகள் & அறிக்கையிடல்' : 'Outcome Metrics & Reporting'}</span>
+          <h2 className="mt-1 text-3xl font-bold">{t('therapyAnalyticsTitle', 'Therapy Analytics')}</h2>
+          <p className="mt-1 text-xs text-emerald-100">{t('therapyAnalyticsDesc', 'Review weekly speech fluency, practice duration, and progress trends.')}</p>
         </div>
         <button
           type="button"
@@ -3056,42 +3297,42 @@ function AnalyticsPage({ role }) {
           className="flex items-center justify-center gap-2 rounded-2xl bg-white px-5 py-3 text-sm font-bold text-emerald-900 shadow-md hover:bg-emerald-50"
         >
           <span>📊</span>
-          <span>Export Report</span>
+          <span>{t('exportReport', 'Export Report')}</span>
         </button>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-3">
         <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
-          <p className="text-xs font-semibold text-slate-500">Fluency Score</p>
+          <p className="text-xs font-semibold text-slate-500">{t('fluencyScore', 'Fluency Score')}</p>
           <p className="mt-2 text-3xl font-bold text-emerald-600">{data.fluencyScore}%</p>
-          <p className="mt-1 text-xs text-emerald-700">↑ 12% improvement this week</p>
+          <p className="mt-1 text-xs text-emerald-700">{t('↑ 12% improvement this week', '↑ 12% improvement this week')}</p>
         </div>
         <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
-          <p className="text-xs font-semibold text-slate-500">Weekly Sessions</p>
+          <p className="text-xs font-semibold text-slate-500">{t('weeklySessions', 'Weekly Sessions')}</p>
           <p className="mt-2 text-3xl font-bold text-teal-600">{data.weeklySessionsCompleted}</p>
-          <p className="mt-1 text-xs text-slate-500">Completed on schedule</p>
+          <p className="mt-1 text-xs text-slate-500">{t('completedOnSchedule', 'Completed on schedule')}</p>
         </div>
         <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
-          <p className="text-xs font-semibold text-slate-500">Total Practice Time</p>
-          <p className="mt-2 text-3xl font-bold text-cyan-600">{data.totalPracticeMinutes} mins</p>
-          <p className="mt-1 text-xs text-slate-500">Across 7 days</p>
+          <p className="text-xs font-semibold text-slate-500">{t('totalPracticeTime', 'Total Practice Time')}</p>
+          <p className="mt-2 text-3xl font-bold text-cyan-600">{data.totalPracticeMinutes} {lang === 'ta' ? 'நிமிடங்கள்' : 'mins'}</p>
+          <p className="mt-1 text-xs text-slate-500">{t('across7Days', 'Across 7 days')}</p>
         </div>
       </div>
 
       {/* Progress Chart Visual */}
       <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
-        <h3 className="font-bold text-slate-900">7-Day Speech Fluency Trend</h3>
-        <p className="text-xs text-slate-500 mb-6">Daily pitch and sound onset stability</p>
+        <h3 className="font-bold text-slate-900">{t('sevenDayTrend', '7-Day Speech Fluency Trend')}</h3>
+        <p className="text-xs text-slate-500 mb-6">{t('dailyPitchStability', 'Daily pitch and sound onset stability')}</p>
 
         <div className="flex h-56 items-end justify-between gap-3 pt-6 border-b border-slate-100 pb-2">
-          {data.trends.map((t) => (
-            <div key={t.day} className="flex flex-1 flex-col items-center gap-2">
-              <span className="text-[10px] font-bold text-emerald-700">{t.score}%</span>
+          {data.trends.map((item) => (
+            <div key={item.day} className="flex flex-1 flex-col items-center gap-2">
+              <span className="text-[10px] font-bold text-emerald-700">{item.score}%</span>
               <div
-                style={{ height: `${t.score * 1.8}px` }}
+                style={{ height: `${item.score * 1.8}px` }}
                 className="w-full max-w-[36px] rounded-t-xl bg-gradient-to-t from-emerald-500 to-teal-400 transition-all duration-500"
               />
-              <span className="text-xs font-semibold text-slate-600">{t.day}</span>
+              <span className="text-xs font-semibold text-slate-600">{lang === 'ta' ? dayMapTa[item.day] || item.day : item.day}</span>
             </div>
           ))}
         </div>
@@ -3287,15 +3528,15 @@ function SpeechJourneyPage({ role }) {
 
           <div className="flex flex-wrap gap-3 text-sm">
             <div className="rounded-2xl bg-white/15 px-3 py-2 backdrop-blur-sm">
-              <p className="text-[10px] uppercase tracking-wide text-emerald-100">Current streak</p>
-              <p className="mt-1 font-bold">{streak} days</p>
+              <p className="text-[10px] uppercase tracking-wide text-emerald-100">{t('currentStreak', 'Current streak')}</p>
+              <p className="mt-1 font-bold">{streak} {lang === 'ta' ? 'நாட்கள்' : 'days'}</p>
             </div>
             <div className="rounded-2xl bg-white/15 px-3 py-2 backdrop-blur-sm">
-              <p className="text-[10px] uppercase tracking-wide text-emerald-100">Points</p>
+              <p className="text-[10px] uppercase tracking-wide text-emerald-100">{t('pointsLabel', 'Points')}</p>
               <p className="mt-1 font-bold">{points}</p>
             </div>
             <div className="rounded-2xl bg-white/15 px-3 py-2 backdrop-blur-sm">
-              <p className="text-[10px] uppercase tracking-wide text-emerald-100">Progress</p>
+              <p className="text-[10px] uppercase tracking-wide text-emerald-100">{t('progressLabel', 'Progress')}</p>
               <p className="mt-1 font-bold">{overallProgress}%</p>
             </div>
           </div>
@@ -3312,11 +3553,11 @@ function SpeechJourneyPage({ role }) {
         <div className="rounded-[28px] border border-slate-100 bg-white p-5 shadow-sm">
           <div className="mb-5 flex items-center justify-between">
             <div>
-              <p className="text-xs font-bold uppercase tracking-[0.2em] text-slate-500">Progress map</p>
-              <h3 className="mt-1 text-xl font-bold text-slate-900">Your therapy path</h3>
+              <p className="text-xs font-bold uppercase tracking-[0.2em] text-slate-500">{t('progressMap', 'Progress map')}</p>
+              <h3 className="mt-1 text-xl font-bold text-slate-900">{t('yourTherapyPath', 'Your therapy path')}</h3>
             </div>
             <div className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-700">
-              {overallProgress}% complete
+              {overallProgress}% {t('completeLabel', 'complete')}
             </div>
           </div>
 
@@ -3350,20 +3591,20 @@ function SpeechJourneyPage({ role }) {
                   <div>
                     <div className="flex items-center gap-2">
                       <span className="text-lg">{stage.icon}</span>
-                      <h4 className="text-lg font-bold text-slate-900">{stage.title}</h4>
+                      <h4 className="text-lg font-bold text-slate-900">{t(stage.title, stage.title)}</h4>
                     </div>
-                    <p className="mt-1 text-xs text-slate-600">{stage.description}</p>
+                    <p className="mt-1 text-xs text-slate-600">{t(stage.description, stage.description)}</p>
                   </div>
 
                   <div className="text-right">
-                    <p className="text-xs font-bold text-slate-500">{stage.badge}</p>
+                    <p className="text-xs font-bold text-slate-500">{t(stage.badge, stage.badge)}</p>
                     <p className="mt-1 text-sm font-bold text-slate-900">{stage.completion}%</p>
                   </div>
                 </div>
 
                 <div className="mt-3">
                   <div className="mb-1 flex items-center justify-between text-[10px] font-bold uppercase tracking-wide text-slate-500">
-                    <span>{stage.completedActivities}/{stage.total} activities</span>
+                    <span>{stage.completedActivities}/{stage.total} {lang === 'ta' ? 'பயிற்சிகள்' : 'activities'}</span>
                     <span>{stage.reward}</span>
                   </div>
                   <div className="h-2.5 rounded-full bg-slate-200">
@@ -3382,15 +3623,15 @@ function SpeechJourneyPage({ role }) {
 
         <div className="space-y-6">
           <div className="rounded-[28px] border border-slate-100 bg-white p-5 shadow-sm">
-            <p className="text-xs font-bold uppercase tracking-[0.2em] text-slate-500">Today's Goal</p>
-            <h3 className="mt-2 text-xl font-bold text-slate-900">{dailyGoalCompleted} / {dailyGoalTotal} activities completed</h3>
+            <p className="text-xs font-bold uppercase tracking-[0.2em] text-slate-500">{t('todaysGoal', "Today's Goal")}</p>
+            <h3 className="mt-2 text-xl font-bold text-slate-900">{dailyGoalCompleted} / {dailyGoalTotal} {t('activitiesCompleted', 'activities completed')}</h3>
 
             <div className="mt-4 h-2.5 rounded-full bg-slate-200">
               <div className="h-2.5 rounded-full bg-gradient-to-r from-emerald-400 to-teal-500 transition-all duration-500" style={{ width: `${dailyGoalProgress}%` }} />
             </div>
 
             <div className="mt-4 flex items-center justify-between text-sm text-slate-600">
-              <span>{Math.max(0, dailyGoalTotal - dailyGoalCompleted)} remaining</span>
+              <span>{Math.max(0, dailyGoalTotal - dailyGoalCompleted)} {t('remainingLabel', 'remaining')}</span>
               <span>{dailyGoalProgress}%</span>
             </div>
 
@@ -3399,12 +3640,12 @@ function SpeechJourneyPage({ role }) {
               onClick={() => navigate('/therapy')}
               className="mt-5 w-full rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-600 px-4 py-3 text-sm font-bold text-white shadow-lg shadow-emerald-500/20 transition hover:-translate-y-0.5"
             >
-              Continue Practice
+              {t('continuePractice', 'Continue Practice')}
             </button>
           </div>
 
           <div className="rounded-[28px] border border-slate-100 bg-white p-5 shadow-sm">
-            <p className="text-xs font-bold uppercase tracking-[0.2em] text-slate-500">Rewards</p>
+            <p className="text-xs font-bold uppercase tracking-[0.2em] text-slate-500">{t('rewardsTitle', 'Rewards')}</p>
             <div className="mt-4 space-y-3">
               {rewards.map((reward) => (
                 <div key={reward.label} className="flex items-center justify-between rounded-2xl bg-slate-50 p-3">
@@ -3412,7 +3653,7 @@ function SpeechJourneyPage({ role }) {
                     <span className={`flex h-10 w-10 items-center justify-center rounded-full text-lg ${reward.tone}`}>
                       {reward.label === 'Stars' ? '⭐' : reward.label === 'Badges' ? '🏅' : '🔥'}
                     </span>
-                    <span className="text-sm font-semibold text-slate-700">{reward.label}</span>
+                    <span className="text-sm font-semibold text-slate-700">{t(reward.label, reward.label)}</span>
                   </div>
                   <span className="text-sm font-bold text-slate-900">{reward.value}</span>
                 </div>
@@ -3522,10 +3763,11 @@ function SpeechJourneyPage({ role }) {
   )
 }
 
-function ProfilePage({ role, setRole }) {
+function ProfilePage({ darkMode, role, userName, setUserName, setRole }) {
+  const { lang, setLanguage, t } = useTranslation()
   const [profile, setProfile] = useState({
-    username: 'Priya Sharma',
-    email: 'priya@voxtech.com',
+    username: userName,
+    email: '',
     role: role || 'Patient',
     preferredLanguage: 'English',
     bio: 'Active therapy participant focusing on articulation & fluency.',
@@ -3541,7 +3783,10 @@ function ProfilePage({ role, setRole }) {
         })
         if (res.ok) {
           const data = await res.json()
-          if (data.profile) setProfile((prev) => ({ ...prev, ...data.profile }))
+          if (data.profile) {
+            setProfile((prev) => ({ ...prev, ...data.profile }))
+            if (data.profile.username) setUserName(data.profile.username)
+          }
         }
       } catch (err) {
         console.warn('Profile fetch fallback:', err)
@@ -3552,7 +3797,10 @@ function ProfilePage({ role, setRole }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    setSaveSuccess('Profile updated successfully!')
+    setUserName(profile.username)
+    const storedUser = JSON.parse(window.localStorage.getItem('voxtech-user') || 'null') || {}
+    window.localStorage.setItem('voxtech-user', JSON.stringify({ ...storedUser, username: profile.username }))
+    setSaveSuccess(t('profileUpdated', 'Profile updated successfully!'))
     setTimeout(() => setSaveSuccess(''), 2500)
     try {
       const token = window.localStorage.getItem('voxtech-token')
@@ -3578,12 +3826,12 @@ function ProfilePage({ role, setRole }) {
           </div>
           <div>
             <h2 className="text-2xl font-bold">{profile.username}</h2>
-            <p className="text-xs text-emerald-400">Role: {profile.role} • {profile.email}</p>
+            <p className="text-xs text-emerald-400">{t('author', 'Role')}: {t(profile.role, profile.role)} • {profile.email}</p>
           </div>
         </div>
       </div>
 
-      <form onSubmit={handleSubmit} className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm space-y-4">
+      <form onSubmit={handleSubmit} className={`space-y-4 rounded-2xl border border-slate-100 bg-white p-6 shadow-sm ${darkMode ? 'text-black' : ''}`}>
         {saveSuccess && (
           <div className="rounded-xl bg-emerald-50 p-3 text-xs font-bold text-emerald-800">
             {saveSuccess}
@@ -3592,70 +3840,83 @@ function ProfilePage({ role, setRole }) {
 
         <div className="grid gap-4 md:grid-cols-2">
           <div>
-            <label className="block text-xs font-bold uppercase text-slate-600">Full Name</label>
+            <label className={darkMode ? 'block text-xs font-bold uppercase text-black' : 'block text-xs font-bold uppercase text-slate-600'}>{t('fullName', 'Full Name')}</label>
             <input
               type="text"
               value={profile.username}
               onChange={(e) => setProfile({ ...profile, username: e.target.value })}
-              className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-emerald-500"
+              className={`mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-emerald-500 ${darkMode ? 'text-black' : ''}`}
               required
             />
           </div>
 
           <div>
-            <label className="block text-xs font-bold uppercase text-slate-600">Email Address</label>
+            <label className={darkMode ? 'block text-xs font-bold uppercase text-black' : 'block text-xs font-bold uppercase text-slate-600'}>{t('emailAddress', 'Email Address')}</label>
             <input
               type="email"
               value={profile.email}
               onChange={(e) => setProfile({ ...profile, email: e.target.value })}
-              className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-emerald-500"
+              className={`mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-emerald-500 ${darkMode ? 'text-black' : ''}`}
               required
             />
           </div>
 
           <div>
-            <label className="block text-xs font-bold uppercase text-slate-600">Current Role</label>
+            <label className={darkMode ? 'block text-xs font-bold uppercase text-black' : 'block text-xs font-bold uppercase text-slate-600'}>{t('currentRole', 'Current Role')}</label>
             <select
               value={profile.role}
               onChange={(e) => {
                 setProfile({ ...profile, role: e.target.value })
                 if (setRole) setRole(e.target.value)
               }}
-              className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-emerald-500"
+              className={`mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-emerald-500 ${darkMode ? 'text-black' : ''}`}
             >
               {roleOptions.map((r) => (
-                <option key={r} value={r}>{r}</option>
+                <option key={r} value={r}>{t(r, r)}</option>
               ))}
             </select>
           </div>
 
           <div>
-            <label className="block text-xs font-bold uppercase text-slate-600">Preferred Language</label>
+            <label className={darkMode ? 'block text-xs font-bold uppercase text-black' : 'block text-xs font-bold uppercase text-slate-600'}>{t('preferredLanguage', 'Preferred Language')}</label>
             <select
               value={profile.preferredLanguage}
-              onChange={(e) => setProfile({ ...profile, preferredLanguage: e.target.value })}
-              className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-emerald-500"
+              onChange={(e) => {
+                const val = e.target.value
+                setProfile({ ...profile, preferredLanguage: val })
+                if (val === 'தமிழ்' || val === 'Tamil') {
+                  setLanguage && setLanguage('ta')
+                } else if (val === 'English') {
+                  setLanguage && setLanguage('en')
+                }
+              }}
+              className={`mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-emerald-500 ${darkMode ? 'text-black' : ''}`}
             >
               <option value="English">English</option>
-              <option value="हिन्दी">हिन्दी (Hindi)</option>
               <option value="தமிழ்">தமிழ் (Tamil)</option>
             </select>
+            <p className="mt-1 text-[11px] text-slate-500">
+              {t('preferenceConfiguredInAccessibility', 'You can configure font size, TTS speed, and voice guidance in Accessibility.')}{' '}
+              <NavLink to="/accessibility" className="font-bold text-emerald-600 hover:underline">
+                {t('openAccessibility', 'Open Accessibility →')}
+              </NavLink>
+            </p>
           </div>
         </div>
 
         <div>
-          <label className="block text-xs font-bold uppercase text-slate-600">Personal Care Bio</label>
+          <label className={darkMode ? 'block text-xs font-bold uppercase text-black' : 'block text-xs font-bold uppercase text-slate-600'}>{t('personalCareBio', 'Personal Care Bio')}</label>
           <textarea
             value={profile.bio}
             onChange={(e) => setProfile({ ...profile, bio: e.target.value })}
-            className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-emerald-500"
+            className={`mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-emerald-500 ${darkMode ? 'text-black' : ''}`}
             rows={3}
           />
         </div>
 
         <div className="flex justify-end pt-2">
           <button type="submit" className="rounded-xl bg-slate-900 px-6 py-2.5 text-xs font-bold text-white shadow-md hover:bg-slate-800">
-            Save Profile Settings
+            {t('saveProfileSettings', 'Save Profile Settings')}
           </button>
         </div>
       </form>
@@ -3663,105 +3924,576 @@ function ProfilePage({ role, setRole }) {
   )
 }
 
-function AccessibilityPage() {
-  const [fontSize, setFontSize] = useState('Normal')
-  const [ttsSpeed, setTtsSpeed] = useState('1.0x')
-  const [dyslexicFont, setDyslexicFont] = useState(false)
-  const [voiceShortcuts, setVoiceShortcuts] = useState(true)
+function AACCommunicationBoard() {
+  const { lang, t } = useTranslation()
+  const [message, setMessage] = useState([])
+  const symbols = [
+    { label: t('symbolI', 'I'), image: 'https://static.arasaac.org/pictograms/621/621_500.png' },
+    { label: t('symbolWant', 'want'), image: 'https://static.arasaac.org/pictograms/686/686_500.png' },
+    { label: t('symbolHelp', 'help'), image: 'https://static.arasaac.org/pictograms/1590/1590_500.png' },
+    { label: t('symbolEat', 'eat'), image: 'https://static.arasaac.org/pictograms/274/274_500.png' },
+    { label: t('symbolDrink', 'drink'), image: 'https://static.arasaac.org/pictograms/1024/1024_500.png' },
+    { label: t('symbolMore', 'more'), image: 'https://static.arasaac.org/pictograms/2604/2604_500.png' },
+    { label: t('symbolYes', 'yes'), image: 'https://static.arasaac.org/pictograms/2875/2875_500.png' },
+    { label: t('symbolNo', 'no'), image: 'https://static.arasaac.org/pictograms/2876/2876_500.png' },
+    { label: t('symbolStop', 'stop'), image: 'https://static.arasaac.org/pictograms/2671/2671_500.png' },
+  ]
+
+  const speakMessage = () => {
+    if (!message.length || !window.speechSynthesis) return
+    window.speechSynthesis.cancel()
+    const utterance = new SpeechSynthesisUtterance(message.join(' '))
+    if (lang === 'ta') {
+      utterance.lang = 'ta-IN'
+    } else {
+      utterance.lang = 'en-IN'
+    }
+    window.speechSynthesis.speak(utterance)
+  }
+
+  return (
+    <section className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
+      <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <p className="text-xs font-bold uppercase tracking-[0.2em] text-emerald-600">{t('communicationAssistance', 'Communication assistance')}</p>
+          <h3 className="mt-1 text-2xl font-bold text-slate-900">{t('aacTitle', 'AAC symbol board')}</h3>
+          <p className="mt-1 text-sm text-slate-600">{t('aacDesc', 'Tap symbols to build a message, then play it aloud.')}</p>
+        </div>
+        <span className="text-xs font-semibold text-slate-500">{t('arasaacSymbols', 'ARASAAC symbols')}</span>
+      </div>
+
+      <div aria-live="polite" className="mb-5 min-h-16 rounded-2xl border border-emerald-100 bg-emerald-50 p-4 text-lg font-bold text-slate-900">
+        {message.length ? message.join(' ') : (lang === 'ta' ? 'உங்கள் செய்தி இங்கே தோன்றும்' : 'Your message will appear here')}
+      </div>
+
+      <div className="grid grid-cols-3 gap-3 sm:grid-cols-5 lg:grid-cols-9">
+        {symbols.map((symbol) => (
+          <button
+            key={symbol.label}
+            type="button"
+            onClick={() => setMessage((current) => [...current, symbol.label])}
+            className="flex min-h-28 flex-col items-center justify-between rounded-2xl border border-slate-200 bg-white p-2 text-sm font-bold text-slate-800 shadow-sm transition hover:-translate-y-0.5 hover:border-emerald-400 hover:bg-emerald-50 focus:outline-none focus:ring-4 focus:ring-emerald-500/20"
+            aria-label={`Add ${symbol.label}`}
+          >
+            <img src={symbol.image} alt={symbol.label} className="h-16 w-16 object-contain" loading="lazy" />
+            <span>{symbol.label}</span>
+          </button>
+        ))}
+      </div>
+
+      <div className="mt-5 flex flex-wrap gap-3">
+        <button type="button" onClick={speakMessage} disabled={!message.length} className="rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-bold text-white shadow-md transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-40">
+          🔊 {t('speakMessage', 'Speak message')}
+        </button>
+        <button type="button" onClick={() => setMessage([])} disabled={!message.length} className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-bold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40">
+          {t('clearMessage', 'Clear message')}
+        </button>
+      </div>
+
+      <p className="mt-4 text-[11px] text-slate-500">{t('arasaacCredit', 'Symbols by ARASAAC. See')} <a className="font-semibold text-emerald-700 underline" href="https://arasaac.org" target="_blank" rel="noreferrer">arasaac.org</a>.</p>
+    </section>
+  )
+}
+
+function AccessibilityPage({ currentLang = 'en', setLanguage }) {
+  const { lang: ctxLang, setLanguage: ctxSetLang, t } = useTranslation()
+  const activeLang = ctxLang || currentLang || 'en'
+  const handleSetLanguage = ctxSetLang || setLanguage
+
+  const [fontSize, setFontSize] = useState(() => {
+    return (typeof window !== 'undefined' && window.localStorage.getItem('voxtech_font_size')) || 'Normal'
+  })
+  const [ttsSpeed, setTtsSpeed] = useState(() => {
+    return (typeof window !== 'undefined' && window.localStorage.getItem('voxtech_tts_speed')) || '1.0x'
+  })
+  const [dyslexicFont, setDyslexicFont] = useState(() => {
+    return typeof window !== 'undefined' && window.localStorage.getItem('voxtech_dyslexia') === 'true'
+  })
+  const [voiceShortcuts, setVoiceShortcuts] = useState(() => {
+    return typeof window !== 'undefined' && window.localStorage.getItem('voxtech_voice_shortcuts') !== 'false'
+  })
+  const [autoTts, setAutoTts] = useState(() => {
+    return typeof window !== 'undefined' && window.localStorage.getItem('voxtech_auto_tts') === 'true'
+  })
+  const [gameMode, setGameMode] = useState(() => {
+    return (typeof window !== 'undefined' && window.localStorage.getItem('voxtech_game_mode')) || 'child'
+  })
+  const [autoMic, setAutoMic] = useState(() => {
+    return typeof window !== 'undefined' && window.localStorage.getItem('voxtech_auto_mic') !== 'false'
+  })
+
+  const [toastMsg, setToastMsg] = useState('')
+  const [isTestingSpeech, setIsTestingSpeech] = useState(false)
+
+  const showToast = (msg) => {
+    setToastMsg(msg)
+    window.clearTimeout(window.__vox_pref_toast)
+    window.__vox_pref_toast = window.setTimeout(() => setToastMsg(''), 2600)
+  }
+
+  const handleLanguageChange = (newLang) => {
+    if (handleSetLanguage) handleSetLanguage(newLang)
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem('voxtech_language', newLang)
+    }
+    showToast(newLang === 'ta' ? 'தமிழ் மொழி விருப்பத்தேர்வு சேமிக்கப்பட்டது! ✓' : 'Language preference set to English! ✓')
+  }
+
+  const handleFontSizeChange = (size) => {
+    setFontSize(size)
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem('voxtech_font_size', size)
+      const sizeMap = { Normal: '16px', Large: '18px', 'Extra Large': '20px' }
+      document.documentElement.style.fontSize = sizeMap[size] || '16px'
+    }
+    showToast(t('preferencesSaved', 'Preference updated successfully! ✓'))
+  }
+
+  const handleTtsSpeedChange = (speed) => {
+    setTtsSpeed(speed)
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem('voxtech_tts_speed', speed)
+    }
+    showToast(t('preferencesSaved', 'Preference updated successfully! ✓'))
+  }
+
+  const handleDyslexiaToggle = () => {
+    const nextVal = !dyslexicFont
+    setDyslexicFont(nextVal)
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem('voxtech_dyslexia', String(nextVal))
+      if (nextVal) {
+        document.body.classList.add('font-dyslexic')
+      } else {
+        document.body.classList.remove('font-dyslexic')
+      }
+    }
+    showToast(t('preferencesSaved', 'Preference updated successfully! ✓'))
+  }
+
+  const handleVoiceShortcutsToggle = () => {
+    const nextVal = !voiceShortcuts
+    setVoiceShortcuts(nextVal)
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem('voxtech_voice_shortcuts', String(nextVal))
+    }
+    showToast(t('preferencesSaved', 'Preference updated successfully! ✓'))
+  }
+
+  const handleAutoTtsToggle = () => {
+    const nextVal = !autoTts
+    setAutoTts(nextVal)
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem('voxtech_auto_tts', String(nextVal))
+    }
+    showToast(t('preferencesSaved', 'Preference updated successfully! ✓'))
+  }
+
+  const handleGameModeChange = (mode) => {
+    setGameMode(mode)
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem('voxtech_game_mode', mode)
+    }
+    showToast(t('preferencesSaved', 'Preference updated successfully! ✓'))
+  }
+
+  const handleAutoMicToggle = () => {
+    const nextVal = !autoMic
+    setAutoMic(nextVal)
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem('voxtech_auto_mic', String(nextVal))
+    }
+    showToast(t('preferencesSaved', 'Preference updated successfully! ✓'))
+  }
+
+  const handleTestSpeech = () => {
+    if (typeof window === 'undefined' || !window.speechSynthesis) return
+    setIsTestingSpeech(true)
+    window.speechSynthesis.cancel()
+
+    const sampleText = activeLang === 'ta'
+      ? 'வணக்கம்! இது உங்கள் அணுகல்தன்மையில் தேர்ந்தெடுக்கப்பட்ட குரல் வாசிப்பு வேகம்.'
+      : 'Hello! This is a preview of your selected speech playback rate.'
+
+    const utterance = new SpeechSynthesisUtterance(sampleText)
+    const rateVal = parseFloat(ttsSpeed) || 1.0
+    utterance.rate = (activeLang === 'ta' ? 0.9 : 1.0) * rateVal
+    utterance.lang = activeLang === 'ta' ? 'ta-IN' : 'en-IN'
+
+    utterance.onend = () => setIsTestingSpeech(false)
+    utterance.onerror = () => setIsTestingSpeech(false)
+
+    window.speechSynthesis.speak(utterance)
+  }
+
+  const handleResetDefaults = () => {
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem('voxtech_font_size', 'Normal')
+      window.localStorage.setItem('voxtech_tts_speed', '1.0x')
+      window.localStorage.setItem('voxtech_dyslexia', 'false')
+      window.localStorage.setItem('voxtech_voice_shortcuts', 'true')
+      window.localStorage.setItem('voxtech_auto_tts', 'false')
+      window.localStorage.setItem('voxtech_game_mode', 'child')
+      window.localStorage.setItem('voxtech_auto_mic', 'true')
+      document.documentElement.style.fontSize = '16px'
+      document.body.classList.remove('font-dyslexic')
+    }
+    setFontSize('Normal')
+    setTtsSpeed('1.0x')
+    setDyslexicFont(false)
+    setVoiceShortcuts(true)
+    setAutoTts(false)
+    setGameMode('child')
+    setAutoMic(true)
+    showToast(activeLang === 'ta' ? 'அனைத்து விருப்பத்தேர்வுகளும் மீட்டமைக்கப்பட்டன! ✓' : 'All preferences reset to defaults! ✓')
+  }
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-4 rounded-[28px] bg-gradient-to-r from-emerald-700 to-cyan-800 p-6 text-white shadow-lg">
-        <span className="text-xs font-bold uppercase tracking-wider text-emerald-200">Inclusive Care Suite</span>
-        <h2 className="text-3xl font-bold">Accessibility & Preferences</h2>
-        <p className="text-xs text-emerald-100">Configure font sizes, voice speeds, and display modes for maximum comfort.</p>
+      {/* Top Hero Banner */}
+      <div className="relative overflow-hidden rounded-[28px] bg-gradient-to-r from-emerald-700 via-teal-800 to-cyan-800 p-6 text-white shadow-lg">
+        <div className="flex flex-col gap-2">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold uppercase tracking-wider text-emerald-200">
+              {t('inclusiveCareSuite', 'Inclusive Care Suite')}
+            </span>
+            {toastMsg && (
+              <span className="animate-bounce rounded-full bg-emerald-400/90 px-3 py-1 text-xs font-black text-slate-900 shadow-md">
+                {toastMsg}
+              </span>
+            )}
+          </div>
+          <h2 className="text-3xl font-bold">{t('accessibilityTitle')}</h2>
+          <p className="max-w-2xl text-xs text-emerald-100">{t('accessibilityDesc')}</p>
+        </div>
       </div>
 
       <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm space-y-6">
-        <div className="flex items-center justify-between border-b pb-4">
+        {/* Multilingual Language Switcher Card */}
+        <div className="flex flex-col gap-3 border-b border-slate-100 pb-6 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h4 className="font-bold text-slate-900">Font Size Scaling</h4>
-            <p className="text-xs text-slate-500">Adjust application text size</p>
+            <div className="flex items-center gap-2">
+              <span className="text-xl">🌐</span>
+              <h4 className="font-bold text-slate-900">{t('langSectionTitle')}</h4>
+            </div>
+            <p className="mt-0.5 max-w-md text-xs text-slate-500">{t('langSectionDesc')}</p>
           </div>
           <div className="flex gap-2">
-            {['Normal', 'Large', 'Extra Large'].map((s) => (
+            <button
+              type="button"
+              onClick={() => handleLanguageChange('en')}
+              className={`flex items-center gap-2 rounded-2xl px-5 py-2.5 text-xs font-extrabold shadow-sm transition ${
+                activeLang === 'en'
+                  ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white ring-2 ring-emerald-500/30'
+                  : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+              }`}
+            >
+              <span>🇬🇧</span>
+              <span>English</span>
+              {activeLang === 'en' && <span className="ml-1 text-[10px]">✓</span>}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => handleLanguageChange('ta')}
+              className={`flex items-center gap-2 rounded-2xl px-5 py-2.5 text-xs font-extrabold shadow-sm transition ${
+                activeLang === 'ta'
+                  ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white ring-2 ring-emerald-500/30'
+                  : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+              }`}
+            >
+              <span>🇮🇳</span>
+              <span>தமிழ் (Tamil)</span>
+              {activeLang === 'ta' && <span className="ml-1 text-[10px]">✓</span>}
+            </button>
+          </div>
+        </div>
+
+        {/* Font Size Scaling */}
+        <div className="flex flex-col gap-3 border-b border-slate-100 pb-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-xl">🔤</span>
+              <h4 className="font-bold text-slate-900">{t('fontSizeTitle')}</h4>
+            </div>
+            <p className="mt-0.5 text-xs text-slate-500">{t('fontSizeDesc')}</p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {[
+              { id: 'Normal', label: t('normal', 'Normal') },
+              { id: 'Large', label: t('large', 'Large') },
+              { id: 'Extra Large', label: t('extraLarge', 'Extra Large') }
+            ].map((s) => (
               <button
-                key={s}
+                key={s.id}
                 type="button"
-                onClick={() => setFontSize(s)}
-                className={`rounded-xl px-3 py-1.5 text-xs font-bold transition ${fontSize === s ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-700'}`}
+                onClick={() => handleFontSizeChange(s.id)}
+                className={`rounded-xl px-3.5 py-2 text-xs font-bold transition ${
+                  fontSize === s.id
+                    ? 'bg-emerald-600 text-white shadow-sm ring-2 ring-emerald-500/20'
+                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                }`}
               >
-                {s}
+                {s.label}
               </button>
             ))}
           </div>
         </div>
 
-        <div className="flex items-center justify-between border-b pb-4">
+        {/* Text-to-Speech Playback Speed */}
+        <div className="flex flex-col gap-3 border-b border-slate-100 pb-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h4 className="font-bold text-slate-900">Text-to-Speech Playback Speed</h4>
-            <p className="text-xs text-slate-500">Voice output cadence for Sarvam AI audio</p>
+            <div className="flex items-center gap-2">
+              <span className="text-xl">⚡</span>
+              <h4 className="font-bold text-slate-900">{t('ttsSpeedTitle')}</h4>
+            </div>
+            <p className="mt-0.5 text-xs text-slate-500">{t('ttsSpeedDesc')}</p>
           </div>
-          <div className="flex gap-2">
-            {['0.8x', '1.0x', '1.2x', '1.5x'].map((sp) => (
+          <div className="flex flex-wrap items-center gap-2">
+            {[
+              { id: '0.8x', label: t('speedSlow', '0.8x Slow') },
+              { id: '1.0x', label: t('speedNormal', '1.0x Normal') },
+              { id: '1.2x', label: t('speedFast', '1.2x Fast') },
+              { id: '1.5x', label: t('speedQuick', '1.5x Quick') }
+            ].map((sp) => (
               <button
-                key={sp}
+                key={sp.id}
                 type="button"
-                onClick={() => setTtsSpeed(sp)}
-                className={`rounded-xl px-3 py-1.5 text-xs font-bold transition ${ttsSpeed === sp ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-700'}`}
+                onClick={() => handleTtsSpeedChange(sp.id)}
+                className={`rounded-xl px-3 py-1.5 text-xs font-bold transition ${
+                  ttsSpeed === sp.id
+                    ? 'bg-emerald-600 text-white shadow-sm'
+                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                }`}
               >
-                {sp}
+                {sp.label}
               </button>
             ))}
+            <button
+              type="button"
+              onClick={handleTestSpeech}
+              disabled={isTestingSpeech}
+              className="rounded-xl border border-emerald-300 bg-emerald-50 px-3 py-1.5 text-xs font-extrabold text-emerald-800 transition hover:bg-emerald-100 disabled:opacity-50"
+            >
+              {isTestingSpeech ? t('previewPlaying', 'Playing...') : t('speechRatePreview', 'Test Voice Speed 🔊')}
+            </button>
           </div>
         </div>
 
-        <div className="flex items-center justify-between border-b pb-4">
+        {/* Dyslexia-Friendly Typography */}
+        <div className="flex items-center justify-between border-b border-slate-100 pb-4">
           <div>
-            <h4 className="font-bold text-slate-900">Dyslexia-Friendly Typography</h4>
-            <p className="text-xs text-slate-500">Enhanced character spacing for readability</p>
+            <div className="flex items-center gap-2">
+              <span className="text-xl">📖</span>
+              <h4 className="font-bold text-slate-900">{t('dyslexiaTitle')}</h4>
+            </div>
+            <p className="mt-0.5 text-xs text-slate-500">{t('dyslexiaDesc')}</p>
           </div>
           <button
             type="button"
-            onClick={() => setDyslexicFont(!dyslexicFont)}
-            className={`rounded-xl px-4 py-2 text-xs font-bold transition ${dyslexicFont ? 'bg-emerald-500 text-white' : 'bg-slate-200 text-slate-700'}`}
+            onClick={handleDyslexiaToggle}
+            className={`rounded-xl px-4 py-2 text-xs font-bold transition ${
+              dyslexicFont
+                ? 'bg-emerald-600 text-white shadow-md'
+                : 'bg-slate-200 text-slate-700 hover:bg-slate-300'
+            }`}
           >
-            {dyslexicFont ? 'Enabled ✓' : 'Disabled'}
+            {dyslexicFont ? t('enabledLabel', 'Enabled ✓') : t('disabledLabel', 'Disabled')}
           </button>
         </div>
 
-        <div className="flex items-center justify-between">
+        {/* Voice Command Shortcuts */}
+        <div className="flex items-center justify-between border-b border-slate-100 pb-4">
           <div>
-            <h4 className="font-bold text-slate-900">Voice Command Shortcuts</h4>
-            <p className="text-xs text-slate-500">Hands-free microphone navigation</p>
+            <div className="flex items-center gap-2">
+              <span className="text-xl">🎙️</span>
+              <h4 className="font-bold text-slate-900">{t('voiceShortcutsTitle')}</h4>
+            </div>
+            <p className="mt-0.5 text-xs text-slate-500">{t('voiceShortcutsDesc')}</p>
           </div>
           <button
             type="button"
-            onClick={() => setVoiceShortcuts(!voiceShortcuts)}
-            className={`rounded-xl px-4 py-2 text-xs font-bold transition ${voiceShortcuts ? 'bg-emerald-500 text-white' : 'bg-slate-200 text-slate-700'}`}
+            onClick={handleVoiceShortcutsToggle}
+            className={`rounded-xl px-4 py-2 text-xs font-bold transition ${
+              voiceShortcuts
+                ? 'bg-emerald-600 text-white shadow-md'
+                : 'bg-slate-200 text-slate-700 hover:bg-slate-300'
+            }`}
           >
-            {voiceShortcuts ? 'Active 🎙️' : 'Off'}
+            {voiceShortcuts ? t('activeLabel', 'Active 🎙️') : t('offLabel', 'Off')}
+          </button>
+        </div>
+
+        {/* Always Enable Voice in Chat */}
+        <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-xl">🤖</span>
+              <h4 className="font-bold text-slate-900">{t('alwaysVoiceTitle')}</h4>
+            </div>
+            <p className="mt-0.5 text-xs text-slate-500">{t('alwaysVoiceDesc')}</p>
+          </div>
+          <button
+            type="button"
+            onClick={handleAutoTtsToggle}
+            className={`rounded-xl px-4 py-2 text-xs font-bold transition ${
+              autoTts
+                ? 'bg-emerald-600 text-white shadow-md'
+                : 'bg-slate-200 text-slate-700 hover:bg-slate-300'
+            }`}
+          >
+            {autoTts ? t('enabledLabel', 'Enabled ✓') : t('disabledLabel', 'Disabled')}
+          </button>
+        </div>
+
+        {/* Speech Therapy Games Preference */}
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-xl">🎮</span>
+              <h4 className="font-bold text-slate-900">{t('gameVoicePrefTitle')}</h4>
+            </div>
+            <p className="mt-0.5 max-w-md text-xs text-slate-500">{t('gameVoicePrefDesc')}</p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => handleGameModeChange('child')}
+              className={`rounded-xl px-3 py-2 text-xs font-bold transition ${
+                gameMode === 'child'
+                  ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-sm'
+                  : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+              }`}
+            >
+              {t('gameModeChild')}
+            </button>
+            <button
+              type="button"
+              onClick={() => handleGameModeChange('adult')}
+              className={`rounded-xl px-3 py-2 text-xs font-bold transition ${
+                gameMode === 'adult'
+                  ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-sm'
+                  : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+              }`}
+            >
+              {t('gameModeAdult')}
+            </button>
+            <button
+              type="button"
+              onClick={handleAutoMicToggle}
+              className={`rounded-xl px-3 py-2 text-xs font-bold transition ${
+                autoMic ? 'border border-emerald-500 bg-emerald-50 text-emerald-800' : 'bg-slate-100 text-slate-500'
+              }`}
+            >
+              🎙️ {t('autoMicLabel')}: {autoMic ? t('enabledLabel') : t('disabledLabel')}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Active Preferences Live Summary Card */}
+      <div className="rounded-2xl border border-emerald-100 bg-gradient-to-r from-emerald-50/70 to-teal-50/70 p-5 shadow-sm">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h4 className="text-sm font-bold text-slate-900">{t('activeSummary')}</h4>
+            <div className="mt-2 flex flex-wrap gap-2 text-xs font-semibold text-slate-700">
+              <span className="rounded-lg bg-white px-2.5 py-1 shadow-sm">
+                {t('currentLanguage')}: <strong className="text-emerald-700">{activeLang === 'ta' ? 'தமிழ்' : 'English'}</strong>
+              </span>
+              <span className="rounded-lg bg-white px-2.5 py-1 shadow-sm">
+                {t('currentFontSize')}: <strong className="text-emerald-700">{fontSize}</strong>
+              </span>
+              <span className="rounded-lg bg-white px-2.5 py-1 shadow-sm">
+                {t('currentTtsSpeed')}: <strong className="text-emerald-700">{ttsSpeed}</strong>
+              </span>
+              <span className="rounded-lg bg-white px-2.5 py-1 shadow-sm">
+                {t('currentDyslexia')}: <strong className="text-emerald-700">{dyslexicFont ? t('enabledLabel') : t('disabledLabel')}</strong>
+              </span>
+              <span className="rounded-lg bg-white px-2.5 py-1 shadow-sm">
+                {t('currentVoiceChat')}: <strong className="text-emerald-700">{autoTts ? t('enabledLabel') : t('disabledLabel')}</strong>
+              </span>
+              <span className="rounded-lg bg-white px-2.5 py-1 shadow-sm">
+                {t('currentGameMode')}: <strong className="text-emerald-700">{gameMode === 'child' ? t('gameModeChild') : t('gameModeAdult')}</strong>
+              </span>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={handleResetDefaults}
+            className="self-start rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 shadow-sm transition hover:bg-slate-50 sm:self-center"
+          >
+            ↺ {t('resetDefaults')}
           </button>
         </div>
       </div>
+
+      <AACCommunicationBoard />
     </div>
   )
 }
 
-function AppShell({ darkMode, setDarkMode, role, setRole, onOpenChat }) {
+function AppShell({ darkMode, setDarkMode, role, setRole, userName, setUserName, onOpenChat, onLogout }) {
+  const { lang: currentLang, setLanguage, t } = useTranslation()
+
   const activeRole = roleOptions.includes(role) ? role : 'Patient'
-  const navItems = roleNavItems[activeRole]
+  const navItems = (roleNavItems[activeRole] || roleNavItems.Patient).map((item) => {
+    const pathKey = item.to.replace(/^\//, '').replace(/-([a-z])/g, (g) => g[1].toUpperCase())
+    const keyCandidate = pathKey === 'speechJourney' ? 'speechFlow' : pathKey
+    return {
+      ...item,
+      label: t(keyCandidate) || t(item.label.toLowerCase()) || item.label,
+    }
+  })
   const [activeCallAppointment, setActiveCallAppointment] = useState(null)
+  const [incomingCallAlert, setIncomingCallAlert] = useState(null)
+  const [currentTime, setCurrentTime] = useState(() => new Date())
+
+  // Apply saved accessibility preferences on startup
+  useEffect(() => {
+    try {
+      const savedFontSize = window.localStorage.getItem('voxtech_font_size') || 'Normal'
+      const sizeMap = { Normal: '16px', Large: '18px', 'Extra Large': '20px' }
+      document.documentElement.style.fontSize = sizeMap[savedFontSize] || '16px'
+
+      const savedDyslexia = window.localStorage.getItem('voxtech_dyslexia') === 'true'
+      if (savedDyslexia) {
+        document.body.classList.add('font-dyslexic')
+      } else {
+        document.body.classList.remove('font-dyslexic')
+      }
+    } catch (e) {}
+  }, [])
+
+  useEffect(() => {
+    const clock = window.setInterval(() => setCurrentTime(new Date()), 60 * 1000)
+    return () => window.clearInterval(clock)
+  }, [])
+
+  // Listen for incoming call notifications across the app
+  useEffect(() => {
+    let socket = null
+    try {
+      socket = io('/', { path: '/socket.io/' })
+      socket.on('incoming-call-alert', (data) => {
+        setIncomingCallAlert(data)
+      })
+      socket.on('dismiss-call-alert', () => {
+        setIncomingCallAlert(null)
+      })
+    } catch (err) {}
+
+    return () => {
+      if (socket) socket.disconnect()
+    }
+  }, [])
+
+  const currentHour = currentTime.getHours()
 
   return (
     <div className="mx-auto flex min-h-screen max-w-[1600px] gap-6 p-4 lg:p-6">
       <aside className={darkMode ? 'flex w-full max-w-[290px] flex-col rounded-[28px] border border-slate-700 bg-slate-900/80 p-5 shadow-2xl shadow-slate-950/20' : 'flex w-full max-w-[290px] flex-col rounded-[28px] border border-emerald-100 bg-white/80 p-5 shadow-[0_20px_45px_rgba(20,80,60,0.08)] backdrop-blur-xl'}>
         <div className="mb-7 flex items-center gap-3">
-          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-300 to-emerald-500 text-xl text-slate-900 shadow-md shadow-emerald-300/25">✦</div>
-          <div>
-            <h2 className={darkMode ? 'text-2xl font-bold text-white' : 'text-2xl font-bold text-slate-900'}>VOXTECH</h2>
-            <span className={darkMode ? 'text-xs text-slate-400' : 'text-xs text-slate-500'}>Clinical care platform</span>
-          </div>
+          <img src="/voxtech-logo.png" alt="VOXTECH" className="h-16 w-full object-contain object-left" />
         </div>
 
         <nav className="space-y-1.5">
@@ -3786,18 +4518,23 @@ function AppShell({ darkMode, setDarkMode, role, setRole, onOpenChat }) {
         <div className="mt-auto space-y-4 pt-6">
           <div className={darkMode ? 'flex items-center gap-2 rounded-2xl border border-emerald-500/20 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-300' : 'flex items-center gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700'}>
             <span className="inline-block h-2.5 w-2.5 rounded-full bg-emerald-400" />
-            System online
+            {t('systemOnline', 'System online')}
           </div>
 
-          <div className={darkMode ? 'flex items-center gap-3 rounded-2xl border border-slate-700 bg-slate-800 px-3 py-3' : 'flex items-center gap-3 rounded-2xl border border-emerald-100 bg-emerald-50/70 px-3 py-3'}>
-            <div className="flex h-11 w-11 items-center justify-center rounded-full bg-gradient-to-br from-slate-200 to-emerald-200 font-bold text-slate-700">
-              {activeRole === 'Patient' ? 'PS' : activeRole === 'Caregiver' ? 'MD' : activeRole === 'Therapist' ? 'NR' : activeRole === 'Supervisor' ? 'AI' : 'AM'}
+          <div className={darkMode ? 'rounded-2xl border border-slate-700 bg-slate-800 px-3 py-3' : 'rounded-2xl border border-emerald-100 bg-emerald-50/70 px-3 py-3'}>
+            <div className="flex items-center gap-3">
+              <div className="flex h-11 w-11 items-center justify-center rounded-full bg-gradient-to-br from-slate-200 to-emerald-200 font-bold text-slate-700">
+                {(userName || 'User').slice(0, 2).toUpperCase()}
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className={darkMode ? 'text-sm font-semibold text-white' : 'text-sm font-semibold text-slate-900'}>{userName}</p>
+                <p className={darkMode ? 'text-xs text-slate-400' : 'text-xs text-slate-500'}>{t(activeRole, activeRole)}</p>
+              </div>
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-100 text-xl shadow-sm">{roleMonitoring[role]?.icon || '👤'}</div>
             </div>
-            <div className="min-w-0 flex-1">
-              <p className={darkMode ? 'text-sm font-semibold text-white' : 'text-sm font-semibold text-slate-900'}>{activeRole === 'Patient' ? 'Priya Sharma' : activeRole === 'Caregiver' ? 'Meera Das' : activeRole === 'Therapist' ? 'Neha Rao' : activeRole === 'Supervisor' ? 'Arjun Iyer' : 'Asha Menon'}</p>
-              <p className={darkMode ? 'text-xs text-slate-400' : 'text-xs text-slate-500'}>{activeRole}</p>
-            </div>
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-100 text-xl shadow-sm">{roleMonitoring[role]?.icon || '👤'}</div>
+            <button type="button" onClick={onLogout} className={darkMode ? 'mt-3 w-full rounded-xl border border-slate-600 px-3 py-2 text-xs font-bold text-slate-200 transition hover:bg-slate-700' : 'mt-3 w-full rounded-xl border border-emerald-200 px-3 py-2 text-xs font-bold text-emerald-800 transition hover:bg-white'}>
+              {t('logout', 'Log out')}
+            </button>
           </div>
         </div>
       </aside>
@@ -3810,8 +4547,10 @@ function AppShell({ darkMode, setDarkMode, role, setRole, onOpenChat }) {
 
         <header className="relative z-10 flex flex-col gap-4 pb-5 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-slate-900 lg:text-4xl">Good Morning 👋</h1>
-            <p className="mt-1 text-slate-600">Your personalized care dashboard.</p>
+            <h1 className={darkMode ? 'text-3xl font-bold text-white lg:text-4xl' : 'text-3xl font-bold text-slate-900 lg:text-4xl'}>
+              {t(currentHour < 12 ? 'goodMorning' : currentHour < 18 ? 'goodAfternoon' : currentHour < 22 ? 'goodEvening' : 'goodNight')}, {userName || 'there'} 👋
+            </h1>
+            <p className={darkMode ? 'mt-1 text-slate-300' : 'mt-1 text-slate-600'}>{t('personalizedCare', 'Your personalized care dashboard.')}</p>
           </div>
 
           <div className="flex items-center gap-3">
@@ -3822,12 +4561,15 @@ function AppShell({ darkMode, setDarkMode, role, setRole, onOpenChat }) {
               🔔 <span className="rounded-full bg-emerald-500 px-1.5 py-0.5 text-[10px] font-bold text-white">3</span>
             </button>
             <button type="button" onClick={onOpenChat} className={darkMode ? 'rounded-full bg-emerald-500 px-3 py-2 text-sm font-semibold text-slate-900 shadow-lg shadow-emerald-500/20' : 'rounded-full bg-emerald-100 px-3 py-2 text-sm font-semibold text-emerald-800 shadow-sm'}>
-              🤖 AI Agent
+              🤖 {t('assistant', 'AI Agent')}
             </button>
-            <select className={darkMode ? 'rounded-full border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-slate-200 outline-none' : 'rounded-full border border-emerald-100 bg-emerald-50 px-3 py-2 text-sm text-slate-700 outline-none'}>
-              <option>English</option>
-              <option>हिन्दी</option>
-              <option>தமிழ்</option>
+            <select
+              value={currentLang}
+              onChange={(e) => setLanguage(e.target.value)}
+              className={darkMode ? 'rounded-full border border-slate-700 bg-slate-800 px-3 py-2 text-sm font-bold text-slate-200 outline-none' : 'rounded-full border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-bold text-emerald-900 outline-none'}
+            >
+              <option value="en">🇬🇧 English</option>
+              <option value="ta">🇮🇳 தமிழ் (Tamil)</option>
             </select>
           </div>
         </header>
@@ -3836,7 +4578,8 @@ function AppShell({ darkMode, setDarkMode, role, setRole, onOpenChat }) {
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
           <Route path="/dashboard" element={<DashboardPage role={activeRole} onStartCall={(item) => setActiveCallAppointment(item)} />} />
           <Route path="/assistant" element={<AssistantPage role={activeRole} />} />
-          <Route path="/journey" element={<SpeechJourneyPage role={activeRole} />} />
+          <Route path="/journey" element={<TherapyJourneyPage />} />
+          <Route path="/speech-journey" element={<SpeechJourneyFlow />} />
           <Route path="/goals" element={<GoalsPage role={activeRole} />} />
           <Route path="/updates" element={<UpdatesPage role={activeRole} />} />
           <Route path="/appointments" element={<AppointmentsPage role={activeRole} onStartCall={(item) => setActiveCallAppointment(item)} />} />
@@ -3844,16 +4587,54 @@ function AppShell({ darkMode, setDarkMode, role, setRole, onOpenChat }) {
           <Route path="/games" element={<GamesPage role={activeRole} />} />
           <Route path="/community" element={<CommunityPage role={activeRole} />} />
           <Route path="/analytics" element={<AnalyticsPage role={activeRole} />} />
-          <Route path="/profile" element={<ProfilePage role={activeRole} setRole={setRole} />} />
-          <Route path="/accessibility" element={<AccessibilityPage />} />
+          <Route path="/profile" element={<ProfilePage darkMode={darkMode} role={activeRole} userName={userName} setUserName={setUserName} setRole={setRole} />} />
+          <Route path="/accessibility" element={<AccessibilityPage currentLang={currentLang} setLanguage={setLanguage} />} />
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>
       </main>
+
+      {/* Global Real-Time Incoming Call Banner */}
+      {incomingCallAlert && (
+        <div className="fixed top-5 left-1/2 z-[100] -translate-x-1/2 flex items-center gap-4 rounded-3xl border border-emerald-400/40 bg-slate-900/95 p-4 pl-5 text-white shadow-2xl backdrop-blur-xl animate-bounce max-w-xl">
+          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-500/20 text-2xl shadow-inner">
+            📞
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-400">{t('incomingCallTitle', 'Incoming Video Call')}</p>
+            <p className="text-xs font-extrabold text-white truncate">
+              <span className="text-emerald-300">{incomingCallAlert.callerName}</span> {t('hasStartedCall', 'has started the video call.')}
+            </p>
+            <p className="text-[10px] text-slate-400">{t('roomCode', 'Room')}: {incomingCallAlert.roomCode}</p>
+          </div>
+
+          <div className="flex items-center gap-2 ml-2">
+            <button
+              type="button"
+              onClick={() => {
+                setActiveCallAppointment(incomingCallAlert.appointment || { roomCode: incomingCallAlert.roomCode, doctor: incomingCallAlert.callerName })
+                setIncomingCallAlert(null)
+              }}
+              className="rounded-xl bg-gradient-to-r from-emerald-400 to-teal-500 px-4 py-2 text-xs font-bold text-slate-950 shadow-lg hover:scale-105 transition"
+            >
+              {t('joinCallBtn', '🎥 Join Call')}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setIncomingCallAlert(null)}
+              className="rounded-xl border border-slate-700 bg-slate-800 px-2.5 py-2 text-xs text-slate-400 hover:text-white"
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+      )}
 
       {activeCallAppointment && (
         <VideoCallModal
           appointment={activeCallAppointment}
           role={activeRole}
+          userName={userName}
           onClose={() => setActiveCallAppointment(null)}
         />
       )}
@@ -3862,36 +4643,83 @@ function AppShell({ darkMode, setDarkMode, role, setRole, onOpenChat }) {
 }
 
 function ChatbotPanel({ darkMode, role, isOpen, onClose }) {
+  const { lang, t } = useTranslation()
+  const [profileName, setProfileName] = useState(() => {
+    try {
+      return JSON.parse(window.localStorage.getItem('voxtech-user') || 'null')?.username || 'there'
+    } catch {
+      return 'there'
+    }
+  })
   const [messages, setMessages] = useState([
     {
       id: 1,
       sender: 'bot',
       text:
         role === 'Patient'
-          ? 'Hi! I can help with speech drills, breathing prompts, and daily practice routines.'
-          : 'Hello! I can help with care coordination, treatment planning, and patient progress insights.',
+          ? (lang === 'ta' ? 'வணக்கம்! பேச்சுப் பயிற்சிகள் மற்றும் தினசரிப் பழக்கவழக்கங்களுக்கு நான் உதவ முடியும்.' : 'Hi! I can help with speech drills, breathing prompts, and daily practice routines.')
+          : (lang === 'ta' ? 'வணக்கம்! பராமரிப்பு ஒருங்கிணைப்பு மற்றும் சிகிச்சைத் திட்டமிடலுக்கு நான் உதவ முடியும்.' : 'Hello! I can help with care coordination, treatment planning, and patient progress insights.'),
     },
   ])
   const [draft, setDraft] = useState('')
   const [isRecording, setIsRecording] = useState(false)
   const [isVoiceLoading, setIsVoiceLoading] = useState(false)
 
-  const speakReply = async (text) => {
-    const token = window.localStorage.getItem('voxtech-token')
-    const response = await fetch('/api/speech/tts', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({ text, targetLanguage: 'en-IN' }),
-    })
+  useEffect(() => {
+    async function fetchProfileName() {
+      try {
+        const token = window.localStorage.getItem('voxtech-token')
+        const response = await fetch('/api/profile', {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        })
+        const data = await response.json().catch(() => ({}))
+        const name = data.profile?.username?.trim()
+        if (name) setProfileName(name)
+      } catch {
+      }
+    }
 
-    if (!response.ok) return
-    const audioUrl = URL.createObjectURL(await response.blob())
-    const audio = new Audio(audioUrl)
-    audio.onended = () => URL.revokeObjectURL(audioUrl)
-    await audio.play()
+    fetchProfileName()
+  }, [])
+
+  useEffect(() => {
+    setMessages((current) => {
+      if (current.length !== 1 || current[0].sender !== 'bot') return current
+      const message = role === 'Patient'
+        ? (lang === 'ta' ? `வணக்கம் ${profileName}! பேச்சுப் பயிற்சிகள் மற்றும் தினசரிப் பழக்கவழக்கங்களுக்கு நான் உதவ முடியும்.` : `Hi ${profileName}! I can help with speech drills, breathing prompts, and daily practice routines.`)
+        : (lang === 'ta' ? `வணக்கம் ${profileName}! பராமரிப்பு ஒருங்கிணைப்பு மற்றும் சிகிச்சைத் திட்டமிடலுக்கு நான் உதவ முடியும்.` : `Hello ${profileName}! I can help with care coordination, treatment planning, and patient progress insights.`)
+      return [{ ...current[0], text: message }]
+    })
+  }, [profileName, role, lang])
+
+  const speakReply = async (text) => {
+    const ttsLang = lang === 'ta' ? 'ta-IN' : 'en-IN'
+    try {
+      const token = window.localStorage.getItem('voxtech-token')
+      const response = await fetch('/api/speech/tts', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ text, targetLanguage: ttsLang }),
+      })
+
+      if (response.ok) {
+        const audioUrl = URL.createObjectURL(await response.blob())
+        const audio = new Audio(audioUrl)
+        audio.onended = () => URL.revokeObjectURL(audioUrl)
+        await audio.play()
+        return
+      }
+    } catch {}
+
+    if (window.speechSynthesis) {
+      window.speechSynthesis.cancel()
+      const u = new SpeechSynthesisUtterance(text)
+      u.lang = ttsLang
+      window.speechSynthesis.speak(u)
+    }
   }
 
   const handleVoiceInput = async () => {
@@ -3920,7 +4748,7 @@ function ChatbotPanel({ darkMode, role, isOpen, onClose }) {
       const token = window.localStorage.getItem('voxtech-token')
       const response = await fetch('/api/speech/transcribe?provider=sarvam', {
         method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
         body: formData,
       })
       const data = await response.json().catch(() => ({}))
@@ -3937,6 +4765,10 @@ function ChatbotPanel({ darkMode, role, isOpen, onClose }) {
 
   const replyFor = (message) => {
     const lower = message.toLowerCase()
+
+    if (lang === 'ta') {
+      return 'சிறந்த கேள்வி. தினமும் சில நிமிடங்கள் அமைதியாகவும் சீராகவும் பயிற்சி செய்வது நல்ல முன்னேற்றத்தைத் தரும்.'
+    }
 
     if (lower.includes('speech') || lower.includes('word') || lower.includes('sound')) {
       return 'Try a 5-minute word game, then repeat 3 target sounds slowly. Practice with a calm voice and a short pause between words.'
@@ -3982,19 +4814,27 @@ function ChatbotPanel({ darkMode, role, isOpen, onClose }) {
           'Content-Type': 'application/json',
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
-        body: JSON.stringify({ message: userText, role }),
+        body: JSON.stringify({ message: userText, role, lang }),
       })
 
       const data = await response.json().catch(() => ({}))
 
-      const botText = data.reply || replyFor(userText)
+      const botText = `${profileName}, ${data.reply || replyFor(userText)}`
       const botMessage = { id: Date.now() + 1, sender: 'bot', text: botText }
 
       setMessages((current) => [...current, botMessage])
-      speakReply(botText).catch(() => {})
+
+      if (window.localStorage.getItem('voxtech_auto_tts') === 'true') {
+        speakReply(botText).catch(() => {})
+      }
     } catch (error) {
-      const botMessage = { id: Date.now() + 1, sender: 'bot', text: replyFor(userText) }
+      const botText = `${profileName}, ${replyFor(userText)}`
+      const botMessage = { id: Date.now() + 1, sender: 'bot', text: botText }
       setMessages((current) => [...current, botMessage])
+
+      if (window.localStorage.getItem('voxtech_auto_tts') === 'true') {
+        speakReply(botText).catch(() => {})
+      }
     }
   }
 
@@ -4007,7 +4847,7 @@ function ChatbotPanel({ darkMode, role, isOpen, onClose }) {
           <span className="text-xl">🤖</span>
           <div>
             <p className="font-bold">VOXTECH AI</p>
-            <p className="text-[10px] uppercase tracking-[0.18em] text-emerald-600">Interactive assistant</p>
+            <p className="text-[10px] uppercase tracking-[0.18em] text-emerald-600">{t('interactiveAssistant', 'Interactive assistant')}</p>
           </div>
         </div>
         <button type="button" onClick={onClose} className="rounded-full bg-white/80 px-2 py-1 text-xs font-bold text-slate-700">✕</button>
@@ -4026,16 +4866,16 @@ function ChatbotPanel({ darkMode, role, isOpen, onClose }) {
           type="text"
           value={draft}
           onChange={(event) => setDraft(event.target.value)}
-          placeholder="Ask the AI assistant..."
+          placeholder={t('askAiPlaceholder', 'Ask the AI assistant...')}
           className="flex-1 rounded-xl border border-emerald-100 bg-emerald-50 px-3 py-2 text-sm text-slate-700 outline-none"
           onKeyDown={(event) => {
             if (event.key === 'Enter') handleSend()
           }}
         />
-        <button type="button" onClick={handleVoiceInput} disabled={isVoiceLoading} className={`rounded-xl px-3 py-2 font-bold ${isRecording ? 'bg-rose-500 text-white' : 'bg-sky-100 text-sky-700'}`} title="Record voice message">
+        <button type="button" onClick={handleVoiceInput} disabled={isVoiceLoading} className={`rounded-xl px-3 py-2 font-bold ${isRecording ? 'bg-rose-500 text-white' : 'bg-sky-100 text-sky-700'}`} title={lang === 'ta' ? 'குரல் செய்தியைப் பதிவு செய்' : 'Record voice message'}>
           {isVoiceLoading ? '...' : isRecording ? '■' : '🎙️'}
         </button>
-        <button type="button" onClick={handleSend} className="rounded-xl bg-emerald-500 px-3 py-2 font-bold text-white">Send</button>
+        <button type="button" onClick={handleSend} className="rounded-xl bg-emerald-500 px-3 py-2 font-bold text-white">{t('send', 'Send')}</button>
       </div>
     </div>
   )
@@ -4051,13 +4891,34 @@ function App() {
     }
   })()
   const storedRole = roleOptions.includes(storedUser?.role) ? storedUser.role : 'Patient'
+  const storedUserName = typeof storedUser?.username === 'string' ? storedUser.username : ''
   const [selectedRole, setSelectedRole] = useState(storedRole)
+  const [userName, setUserName] = useState(storedUserName)
   const [loginData, setLoginData] = useState({ username: '', password: '', role: 'Patient' })
   const [authMode, setAuthMode] = useState('login')
   const [formMessage, setFormMessage] = useState('')
   const [formError, setFormError] = useState('')
-  const [isAuthenticated, setIsAuthenticated] = useState(() => Boolean(window.localStorage.getItem('voxtech-token') && storedUser))
+  const [isAuthenticated, setIsAuthenticated] = useState(() => {
+    const token = window.localStorage.getItem('voxtech-token')
+    const hasValidStoredUser = storedUser && typeof storedUser === 'object' && roleOptions.includes(storedUser.role)
+
+    if (!token || !hasValidStoredUser) {
+      window.localStorage.removeItem('voxtech-token')
+      window.localStorage.removeItem('voxtech-user')
+      return false
+    }
+
+    return true
+  })
   const [isChatOpen, setIsChatOpen] = useState(false)
+
+  const handleLogout = () => {
+    window.localStorage.removeItem('voxtech-token')
+    window.localStorage.removeItem('voxtech-user')
+    setIsChatOpen(false)
+    setUserName('')
+    setIsAuthenticated(false)
+  }
 
   const handleCreateAccount = async (event) => {
     event.preventDefault()
@@ -4128,9 +4989,13 @@ function App() {
       if (data.token) {
         window.localStorage.setItem('voxtech-token', data.token)
       }
-      if (data.user) {
-        window.localStorage.setItem('voxtech-user', JSON.stringify(data.user))
+      const authenticatedUser = {
+        ...(data.user || {}),
+        username: data.user?.username || loginData.username.trim(),
+        role: data.user?.role || userRole,
       }
+      setUserName(authenticatedUser.username)
+      window.localStorage.setItem('voxtech-user', JSON.stringify(authenticatedUser))
 
       window.setTimeout(() => setIsAuthenticated(true), 700)
     } catch (error) {
@@ -4147,11 +5012,7 @@ function App() {
             <div className="w-[min(430px,calc(100vw-32px))] rounded-[30px] border border-emerald-300/20 bg-[#061d17] p-7 shadow-[0_30px_80px_rgba(7,31,26,0.45)]">
               <div className="mb-5 flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-400/20 text-lg text-emerald-300">✦</div>
-                  <div>
-                    <h2 className="text-2xl font-bold text-white">VOXTECH</h2>
-                    <span className="text-xs text-slate-300">Speech & language therapy</span>
-                  </div>
+                  <img src="/voxtech-logo.png" alt="VOXTECH Speech and language therapy" className="h-24 w-56 object-contain object-left" />
                 </div>
 
                 <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-500/15 text-2xl shadow-inner shadow-emerald-500/20">
@@ -4218,7 +5079,7 @@ function App() {
           </div>
         ) : (
           <>
-            <AppShell darkMode={darkMode} setDarkMode={setDarkMode} role={selectedRole} setRole={setSelectedRole} onOpenChat={() => setIsChatOpen(true)} />
+            <AppShell darkMode={darkMode} setDarkMode={setDarkMode} role={selectedRole} setRole={setSelectedRole} userName={userName} setUserName={setUserName} onOpenChat={() => setIsChatOpen(true)} onLogout={handleLogout} />
             <ChatbotPanel darkMode={darkMode} role={selectedRole} isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} />
           </>
         )}
